@@ -285,7 +285,7 @@ class EvaluationImplementation {
           else {
             $modulefile = "No Such File";
           }
-          if (strpos($modulefile, 'Information added by Drupal.org') !== FALSE || strpos($modulefile, 'Information added by drupal.org') !== FALSE) {
+          if (strpos($modulefile, 'Information added by Drupal.org') !== FALSE || strpos($modulefile, 'datestamp') !== FALSE) {
             $modules['type'] = "Contrib";
           }
           $second = 1;
@@ -315,16 +315,30 @@ class EvaluationImplementation {
    * Calculates file`s number of lines.
    */
   private static function upgradeCheckCountLines($file) {
-    $linecount = 0;
+    $allC = $commentC = $codeC = $emptyC = $badEC = 0;
     $handle = fopen($file, "r");
+    $regComment = '/^(\s*\/+\*+\*+)|(\s+\*+\s+)|(\s+\*+\/+)|(\s+\/+\/+)/';
+    $regCode = '/^[\d\w\{\}\[\]\(\)\@\$\=\+\-\*\/\!\#\%\^\&\?\<\>\-\.\,\`\~\;\:\|\s\_]+/';
     while (!feof($handle)) {
       $content = fgets($handle);
-      if ($content !== "\n") {
-        $linecount++;
+      ++$allC;
+      if ($content === "\n" || empty($content)) {
+        ++$emptyC;
+      }
+      elseif ($content === "\r" || $content === "\r\n") {
+        ++$badEC;
+      }
+      elseif (preg_match($regComment, $content)) {
+        ++$commentC;
+      }
+      else {
+        ++$codeC;
       }
     }
     fclose($handle);
-    return $linecount;
+    $result = $allC . '/' . $codeC  . '/' . $commentC . '/' . $emptyC;
+    $result .= '/' . $badEC;
+    return $result;
   }
 
   /**
