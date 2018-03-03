@@ -1,0 +1,5 @@
+name = Drupal 8 upgrade evaluation
+description = Drupal 8 upgrade evaluation.
+core = 7.x
+
+configure = admin/config/upgrade-check

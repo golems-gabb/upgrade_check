@@ -1,0 +1,97 @@
+<?php
+
+/**
+ * @file
+ * This is module file for drupal 8 upgrade evaluation.
+ */
+
+require_once DRUPAL_ROOT . '/' . drupal_get_path('module', 'upgrade_check') . '/includes/EvaluationImplementation.php';
+
+define("UPGRADE_CHECK_PATCH", 'admin/config/upgrade-check');
+define("UPGRADE_CHECK_EVALUATION", UPGRADE_CHECK_PATCH . '/evaluation');
+define("UPGRADE_CHECK_JSON", UPGRADE_CHECK_PATCH . '/json-download');
+
+/**
+ * Implements hook_menu().
+ */
+function upgrade_check_menu() {
+  $items[UPGRADE_CHECK_PATCH] = array(
+    'title' => 'Drupal 8 upgrade',
+    'description' => 'Drupal 8 upgrade.',
+    'page callback' => 'system_admin_menu_block_page',
+    'access arguments' => array('access administration pages'),
+    'file' => 'system.admin.inc',
+    'file path' => drupal_get_path('module', 'system'),
+  );
+  $items[UPGRADE_CHECK_EVALUATION] = array(
+    'title' => 'Drupal 8 upgrade evaluation',
+    'description' => 'Drupal 8 upgrade evaluation.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('upgrade_check_form'),
+    'access arguments' => array('administer upgrade check'),
+  );
+  $items[UPGRADE_CHECK_JSON] = array(
+    'title' => 'Follow the Steps to get your upgrade score',
+    'description' => 'Download json result',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('_upgrade_check_json_form'),
+    'access arguments' => array('administer upgrade check json download'),
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_form().
+ */
+function upgrade_check_form() {
+  return \Upgrade_check\EvaluationImplementation::upgradeCheckForm();
+}
+
+/**
+ * Implement hook_form_submit
+ */
+function upgrade_check_form_submit($form, &$form_state) {
+  return \Upgrade_check\EvaluationImplementation::upgradeCheckFormSubmit();
+}
+
+/**
+ * Calculates modules.
+ */
+function _upgrade_check_modules_evaluation($module, &$context) {
+  return \Upgrade_check\EvaluationImplementation::upgradeCheckModulesEvaluation($module, $context);
+}
+
+/**
+ * Calculates themes.
+ */
+function _upgrade_check_themes_evaluation($theme, &$context) {
+  return \Upgrade_check\EvaluationImplementation::upgradeCheckThemesEvaluation($theme, $context);
+}
+
+/**
+ * Creating Json file.
+ */
+function _upgrade_check_create_json($data, &$context) {
+  return \Upgrade_check\EvaluationImplementation::upgradeCheckCreateJson($data, $context);
+}
+
+/**
+ * Function called after batch processing.
+ */
+function _upgrade_check_json_finished($success, $results, $operations) {
+  return \Upgrade_check\EvaluationImplementation::upgradeCheckJsonFinished($success);
+}
+
+/**
+ * Function download json.
+ */
+function _upgrade_check_json_form() {
+  return \Upgrade_check\EvaluationImplementation::upgradeCheckJsonForm();
+}
+
+/**
+ * Function download json submit.
+ */
+function _upgrade_check_json_form_submit() {
+  return \Upgrade_check\EvaluationImplementation::upgradeCheckJsonFormSubmit();
+}
