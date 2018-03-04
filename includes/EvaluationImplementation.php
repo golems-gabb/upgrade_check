@@ -271,7 +271,7 @@ class EvaluationImplementation {
       }
     }
     fclose($handle);
-    $result = $allC . '/' . $codeC  . '/' . $commentC . '/' . $emptyC;
+    $result = $allC . '/' . $codeC . '/' . $commentC . '/' . $emptyC;
     $result .= '/' . $badEC;
     return $result;
   }
@@ -349,9 +349,9 @@ class EvaluationImplementation {
         't' => 'field_config',
         'a' => 'fc',
         'f' => array('type', 'module', 'active'),
-        'con' => array('left' =>'field_id', 'right' => 'id'),
+        'con' => array('left' => 'field_id', 'right' => 'id'),
         'jt' => 'left',
-      )
+      ),
     );
     $result = $this->generateSql($param);
     return $result;
@@ -557,8 +557,8 @@ class EvaluationImplementation {
   /**
    * Processes a task to fetch available update data for a single project.
    *
-   * Once the release history XML data is downloaded, it is parsed and saved into
-   * the {cache_update} table in an entry just for that project.
+   * Once the release history XML data is downloaded, it is parsed and saved
+   * into the {cache_update} table in an entry just for that project.
    *
    * @param $project
    *   Associative array of information about the project to fetch data for.
