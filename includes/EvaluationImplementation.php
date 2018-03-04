@@ -90,82 +90,18 @@ class EvaluationImplementation {
    */
   public static function upgradeCheckFormSubmit() {
     global $base_url;
-    $data = $keys = $viewsdata = $operations = array();
-    // Fetching: file managed/Nodes/Users/Taxonomy terms.
-    $keys = array(
-      'file_managed' => array('file_managed', 'fid', 'f'),
-      'nodes' => array('node', 'nid', 'n'),
-      'users' => array('users', 'uid', 'u'),
-      'terms' => array('taxonomy_term_data', 'tid', 't'),
-    );
+    $data = $operations = array();
+    $evIm = new EvaluationImplementation;
     $siteName = variable_get('site_name', 'Drupal');
     $data['info'] = array('site_name' => $siteName, 'base_url' => $base_url);
-    foreach ($keys as $key => $val) {
-      $param = array('t' => $val[0], 'a' => $val[2], 'f' => array($val[1]));
-      $result = self::generateSql($param);
-      $data[$key] = count($result);
-    }
-    // Fetching views data.
-    if (module_exists('views')) {
-      $param = array(
-        't' => 'views_view',
-        'a' => 'v',
-        'f' => array('vid', 'name', 'description'),
-      );
-      $query = self::generateSql($param, TRUE);
-      foreach ($query as $view) {
-        $param = array(
-          't' => 'views_display',
-          'a' => 'v',
-          'f' => array('id', 'display_title'),
-          'c' => array(array('f' => 'vid', 'v' => $view->vid)),
-        );
-        $display_count = self::generateSql($param);
-        array_push($viewsdata, array(
-          'view' => $view->name,
-          'description' => $view->description,
-          'displays' => count($display_count),
-        ));
-      }
-    }
-    $data['viewsdata'] = $viewsdata;
-    // Fetch Data of all enabled Modules.
-    $param = array(
-      't' => 'system',
-      'a' => 's',
-      'f' => array('filename', 'name', 'schema_version'),
-      'c' => array(
-        array('f' => 'status', 'v' => 1),
-        array('f' => 'type', 'v' => 'module'),
-      ),
-    );
-    $system = self::generateSql($param);
-    foreach ($system as $module) {
-      if ($module->name === 'upgrade_check' || $module->name === 'standard') {
-        continue;
-      }
-      $operations[] = array(
-        '_upgrade_check_modules_evaluation',
-        array('module' => $module),
-      );
-    }
-    // Fetch Data of all enabled Themes.
-    $param = array(
-      't' => 'system',
-      'a' => 's',
-      'f' => array('filename', 'name'),
-      'c' => array(
-        array('f' => 'status', 'v' => 1),
-        array('f' => 'type', 'v' => 'theme'),
-      ),
-    );
-    $themeSql = self::generateSql($param, TRUE);
-    foreach ($themeSql as $theme) {
-      $operations[] = array(
-        '_upgrade_check_themes_evaluation',
-        array('theme' => $theme),
-      );
-    }
+    $evIm->upgradeCheckEntityData($data);
+    $evIm->upgradeCheckModulesData($operations);
+    $evIm->upgradeCheckThemesData($operations);
+    $data['fields_data'] = $evIm->upgradeCheckFieldsData();
+    $data['nodes_data'] = $evIm->upgradeCheckNodesData();
+    $data['menu_data'] = $evIm->upgradeCheckMenusData();
+    $data['taxonomy_data'] = $evIm->upgradeCheckTaxonomyData();
+    $data['views_data'] = $evIm->upgradeCheckViewsData();
     $operations[] = array('_upgrade_check_create_json', array('data' => $data));
     $batch = array(
       'operations' => $operations,
@@ -318,7 +254,6 @@ class EvaluationImplementation {
     $allC = $commentC = $codeC = $emptyC = $badEC = 0;
     $handle = fopen($file, "r");
     $regComment = '/^(\s*\/+\*+\*+)|(\s+\*+\s+)|(\s+\*+\/+)|(\s+\/+\/+)/';
-    $regCode = '/^[\d\w\{\}\[\]\(\)\@\$\=\+\-\*\/\!\#\%\^\&\?\<\>\-\.\,\`\~\;\:\|\s\_]+/';
     while (!feof($handle)) {
       $content = fgets($handle);
       ++$allC;
@@ -342,12 +277,258 @@ class EvaluationImplementation {
   }
 
   /**
+   * Fetching: Nodes/Files usage/Users/Image styles/Roles/Languages/Blocks.
+   */
+  private function upgradeCheckEntityData(&$data) {
+    $keys = array(
+      'nodes' => array('node', 'nid', 'n'),
+      'file_managed' => array('file_usage', 'fid', 'f'),
+      'users' => array('users', 'uid', 'u'),
+      'image_styles' => array('image_styles', 'isid', 'i'),
+      'roles' => array('users_roles', 'rid', 'u'),
+      'languages' => array('languages', 'language', 'l'),
+      'block_custom' => array('block_custom', 'bid', 'b'),
+    );
+    foreach ($keys as $key => $val) {
+      $param = array('t' => $val[0], 'a' => $val[2], 'f' => array($val[1]));
+      $result = $this->generateSql($param);
+      $data[$key] = count($result);
+    }
+    return NULL;
+  }
+
+  /**
+   * Fetch menus data.
+   */
+  private function upgradeCheckMenusData() {
+    $result = array();
+    $param = array(
+      't' => 'menu_links',
+      'a' => 'm',
+      'f' => array('menu_name'),
+    );
+    $links = $this->generateSql($param);
+    foreach ($links as $link) {
+      if (empty($result[$link->menu_name])) {
+        $result[$link->menu_name] = 1;
+      }
+      else {
+        ++$result[$link->menu_name];
+      }
+    }
+    return $result;
+  }
+
+  /**
+   * Fetch nodes data.
+   */
+  private function upgradeCheckNodesData() {
+    $result = array();
+    $param = array(
+      't' => 'node_type',
+      'a' => 'n',
+      'f' => array('type', 'module'),
+    );
+    $nodes = $this->generateSql($param);
+    foreach ($nodes as $node) {
+      $result[$node->type] = $node->module;
+    }
+    return $result;
+  }
+
+  /**
+   * Fetch fields data.
+   */
+  private function upgradeCheckFieldsData() {
+    $result = array();
+    $param = array(
+      't' => 'field_config_instance',
+      'a' => 'fci',
+      'f' => array('entity_type', 'bundle'),
+      'j' => array(
+        't' => 'field_config',
+        'a' => 'fc',
+        'f' => array('type', 'module', 'active'),
+        'con' => array('left' =>'field_id', 'right' => 'id'),
+        'jt' => 'left',
+      )
+    );
+    $result = $this->generateSql($param);
+    return $result;
+  }
+
+  /**
+   * Fetch taxonomy data.
+   */
+  private function upgradeCheckTaxonomyData() {
+    $result = array();
+    $taxonomyVocabulary = $this->upgradeCheckTaxonomyVocabularyData();
+    $taxonomyTerms = $this->upgradeCheckTaxonomyTermsData();
+    if (!empty($taxonomyTerms) && !empty($taxonomyVocabulary)) {
+      foreach ($taxonomyTerms as $key => $value) {
+        if (!empty($taxonomyVocabulary[$value])) {
+          if (empty($result[$taxonomyVocabulary[$value]])) {
+            $result[$taxonomyVocabulary[$value]] = 1;
+          }
+          else {
+            ++$result[$taxonomyVocabulary[$value]];
+          }
+        }
+      }
+    }
+    return $result;
+  }
+
+  /**
+   * Fetch taxonomy vocabulary data.
+   */
+  private function upgradeCheckTaxonomyVocabularyData() {
+    $result = array();
+    $param = array(
+      't' => 'taxonomy_vocabulary',
+      'a' => 't',
+      'f' => array('vid', 'machine_name'),
+    );
+    $vocabularies = $this->generateSql($param);
+    foreach ($vocabularies as $vocabulary) {
+      $result[$vocabulary->vid] = $vocabulary->machine_name;
+    }
+    return $result;
+  }
+
+  /**
+   * Fetch taxonomy terms data.
+   */
+  private function upgradeCheckTaxonomyTermsData() {
+    $result = array();
+    $param = array(
+      't' => 'taxonomy_term_data',
+      'a' => 't',
+      'f' => array('tid', 'vid'),
+    );
+    $terms = $this->generateSql($param);
+    foreach ($terms as $term) {
+      $result[$term->tid] = $term->vid;
+    }
+    return $result;
+  }
+
+  /**
+   * Fetch data of all enabled modules.
+   */
+  private function upgradeCheckModulesData(&$operations) {
+    $param = array(
+      't' => 'system',
+      'a' => 's',
+      'f' => array('filename', 'name', 'schema_version'),
+      'c' => array(
+        array('f' => 'status', 'v' => 1),
+        array('f' => 'type', 'v' => 'module'),
+      ),
+    );
+    $system = $this->generateSql($param);
+    foreach ($system as $module) {
+      if ($module->name === 'upgrade_check' || $module->name === 'standard') {
+        continue;
+      }
+      $operations[] = array(
+        '_upgrade_check_modules_evaluation',
+        array('module' => $module),
+      );
+    }
+    return NULL;
+  }
+
+  /**
+   * Fetch data of all enabled themes.
+   */
+  private function upgradeCheckThemesData(&$operations) {
+    $param = array(
+      't' => 'system',
+      'a' => 's',
+      'f' => array('filename', 'name'),
+      'c' => array(
+        array('f' => 'status', 'v' => 1),
+        array('f' => 'type', 'v' => 'theme'),
+      ),
+    );
+    $themeSql = $this->generateSql($param, TRUE);
+    foreach ($themeSql as $theme) {
+      $operations[] = array(
+        '_upgrade_check_themes_evaluation',
+        array('theme' => $theme),
+      );
+    }
+    return NULL;
+  }
+
+  /**
+   * Fetching views data.
+   */
+  private function upgradeCheckViewsData() {
+    $viewsdata = array();
+    if (module_exists('views')) {
+      $param = array(
+        't' => 'views_view',
+        'a' => 'v',
+        'f' => array('vid', 'name', 'description'),
+      );
+      $query = $this->generateSql($param, TRUE);
+      foreach ($query as $view) {
+        $param = array(
+          't' => 'views_display',
+          'a' => 'v',
+          'f' => array('id', 'display_title'),
+          'c' => array(array('f' => 'vid', 'v' => $view->vid)),
+        );
+        $display_count = $this->generateSql($param);
+        array_push($viewsdata, array(
+          'view' => $view->name,
+          'description' => $view->description,
+          'displays' => count($display_count),
+        ));
+      }
+    }
+    return $viewsdata;
+  }
+
+  /**
    * Generate SQL.
    */
-  private static function generateSql($data, $dontAll = FALSE) {
+  private function generateSql($data, $dontAll = FALSE) {
     $result = FALSE;
     if (!empty($data) && !empty($data['t']) && !empty($data['a'])) {
       $query = db_select($data['t'], $data['a']);
+      if (!empty($data['j']) && !empty($data['j']['t'])) {
+        if (!empty($data['j']['a']) && !empty($data['j']['jt']) && !empty($data['j']['con'])) {
+          $sqlVal = $data['a'] . '.' . $data['j']['con']['left'] . ' = ';
+          $sqlVal .= $data['j']['a'] . '.' . $data['j']['con']['right'];
+          if ($data['j']['jt'] === 'inner') {
+            $query->innerJoin($data['j']['t'], $data['j']['a'], $sqlVal);
+          }
+          elseif ($data['j']['jt'] === 'left') {
+            $query->leftJoin($data['j']['t'], $data['j']['a'], $sqlVal);
+          }
+          elseif ($data['j']['jt'] === 'right') {
+            $query->rightJoin($data['j']['t'], $data['j']['a'], $sqlVal);
+          }
+        }
+        if (!empty($data['j']['f'])) {
+          $query->fields($data['j']['a'], $data['j']['f']);
+        }
+        if (!empty($data['j']['c']) && is_array($data['j']['c'])) {
+          foreach ($data['j']['c'] as $value) {
+            if (!empty($value) && !empty($value['f']) && !empty($value['v'])) {
+              if (!empty($value['p'])) {
+                $query->condition($value['f'], $value['v'], $value['p']);
+              }
+              else {
+                $query->condition($value['f'], $value['v']);
+              }
+            }
+          }
+        }
+      }
       if (!empty($data['f']) && is_array($data['f'])) {
         $query->fields($data['a'], $data['f']);
       }
@@ -372,5 +553,111 @@ class EvaluationImplementation {
     }
     return $result;
   }
+
+  /**
+   * Processes a task to fetch available update data for a single project.
+   *
+   * Once the release history XML data is downloaded, it is parsed and saved into
+   * the {cache_update} table in an entry just for that project.
+   *
+   * @param $project
+   *   Associative array of information about the project to fetch data for.
+   *
+   * @return
+   *   TRUE if we fetched parsable XML, otherwise FALSE.
+   */
+  /*function _update_process_fetch_task($project) {
+    global $base_url;
+    $fail = &drupal_static(__FUNCTION__, array());
+    // This can be in the middle of a long-running batch, so REQUEST_TIME won't
+    // necessarily be valid.
+    $now = time();
+    if (empty($fail)) {
+      // If we have valid data about release history XML servers that we have
+      // failed to fetch from on previous attempts, load that from the cache.
+      if (($cache = _update_cache_get('fetch_failures')) && ($cache->expire > $now)) {
+        $fail = $cache->data;
+      }
+    }
+
+    $max_fetch_attempts = variable_get('update_max_fetch_attempts', UPDATE_MAX_FETCH_ATTEMPTS);
+
+    $success = FALSE;
+    $available = array();
+    $site_key = drupal_hmac_base64($base_url, drupal_get_private_key());
+    $url = _update_build_fetch_url($project, $site_key);
+    $fetch_url_base = _update_get_fetch_url_base($project);
+    $project_name = $project['name'];
+
+    if (empty($fail[$fetch_url_base]) || $fail[$fetch_url_base] < $max_fetch_attempts) {
+      $xml = drupal_http_request($url);
+      if (!isset($xml->error) && isset($xml->data)) {
+        $data = $xml->data;
+      }
+    }
+
+    if (!empty($data)) {
+      $available = update_parse_xml($data);
+      // @todo: Purge release data we don't need (http://drupal.org/node/238950).
+      if (!empty($available)) {
+        // Only if we fetched and parsed something sane do we return success.
+        $success = TRUE;
+      }
+    }
+    else {
+      $available['project_status'] = 'not-fetched';
+      if (empty($fail[$fetch_url_base])) {
+        $fail[$fetch_url_base] = 1;
+      }
+      else {
+        $fail[$fetch_url_base]++;
+      }
+    }
+
+    $frequency = variable_get('update_check_frequency', 1);
+    $cid = 'available_releases::' . $project_name;
+    _update_cache_set($cid, $available, $now + (60 * 60 * 24 * $frequency));
+
+    // Stash the $fail data back in the DB for the next 5 minutes.
+    _update_cache_set('fetch_failures', $fail, $now + (60 * 5));
+
+    // Whether this worked or not, we did just (try to) check for updates.
+    variable_set('update_last_check', $now);
+
+    // Now that we processed the fetch task for this project, clear out the
+    // record in {cache_update} for this task so we're willing to fetch again.
+    _update_cache_clear('fetch_task::' . $project_name);
+
+    return $success;
+  }*/
+
+  /**
+   * Clears out all the cached available update data and initiates re-fetching.
+   */
+  /*function _update_refresh() {
+    module_load_include('inc', 'update', 'update.compare');
+
+    // Since we're fetching new available update data, we want to clear
+    // our cache of both the projects we care about, and the current update
+    // status of the site. We do *not* want to clear the cache of available
+    // releases just yet, since that data (even if it's stale) can be useful
+    // during update_get_projects(); for example, to modules that implement
+    // hook_system_info_alter() such as cvs_deploy.
+    _update_cache_clear('update_project_projects');
+    _update_cache_clear('update_project_data');
+
+    $projects = update_get_projects();
+
+    // Now that we have the list of projects, we should also clear our cache of
+    // available release data, since even if we fail to fetch new data, we need
+    // to clear out the stale data at this point.
+    _update_cache_clear('available_releases::', TRUE);
+
+    foreach ($projects as $key => $project) {
+      update_create_fetch_task($project);
+    }
+  }*/
+
+  //if (function_exists('drupal_get_path')) {
 
 }
