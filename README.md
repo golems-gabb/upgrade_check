@@ -1,4 +1,4 @@
-#Introduction
+# Introduction
 
 **Upgrade Check module allows quickly estimate Drupal project
  for migration to Drupal 8.**
@@ -6,7 +6,7 @@
 **Module analyze project compatibility, prepare data
 and show detailed report on service site.**
 
-##Usage
+## Usage
 You need to do few steps to generate report:
 1. Download the module. Use the optimal way to install that fit
 your project module delivery method via manual installing, drush or composer:
@@ -30,6 +30,6 @@ your project module delivery method via manual installing, drush or composer:
 7. After downloading JSON File, upload it on https://site.com/evaluation/upgrade/
 with your credentials to check your website report.
 
-###Contact info
+### Contact info
 
-[test contact](test@test.com)
+[test contact](mailto:test@test.com)
