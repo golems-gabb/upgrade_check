@@ -150,9 +150,10 @@ class EvaluationImplementation {
     $themes['lines'] = 0;
     $themes['files'] = NULL;
     $themes['type'] = "Enabled";
+    $themeName = !empty($theme->name) ? $theme->name : '';
     $theme_path = drupal_get_path('theme', variable_get('theme_default', NULL));
     $default_theme = substr($theme_path, strrpos($theme_path, "/") + 1);
-    if ($theme->name == $default_theme) {
+    if ($themeName == $default_theme) {
       $themes['type'] = "Default";
     }
     $filelocation = substr($theme->filename, 0, strripos($theme->filename, '/'));
@@ -170,9 +171,9 @@ class EvaluationImplementation {
         continue;
       }
       else {
-        $line = self::upgradeCheckCountLines($name);
-        $themes['lines'] += $line;
-        $themes['files'][$name] = $line;
+        $data = self::upgradeCheckCountLines($name, $themeName);
+        $themes['lines'] += $data['all_strings'];
+        $themes['files'][$name] = $data;
       }
     }
     $themes['name'] = $theme->name;
@@ -186,6 +187,7 @@ class EvaluationImplementation {
     $modules = $modules['files'] = array();
     $modules['type'] = "Custom";
     $modules['lines'] = 0;
+    $moduleName = !empty($module->name) ? $module->name : '';
     if (empty($context['sandbox'])) {
       $context['sandbox']['progress'] = 0;
       $first = $second = 0;
@@ -200,7 +202,7 @@ class EvaluationImplementation {
       $iterator = new \RecursiveIteratorIterator($directory);
       foreach ($iterator as $name => $object) {
         $status = FALSE;
-        $filename = $filelocation . "/" . $module->name . ".module";
+        $filename = $filelocation . "/" . $moduleName . ".module";
         if (empty($first)) {
           if (file_exists($filename)) {
             $modulefile = file_get_contents($filename);
@@ -209,11 +211,11 @@ class EvaluationImplementation {
             $modulefile = "No Such File";
           }
           if (strpos($modulefile, 'include_once') !== FALSE &&
-            strpos($modulefile, $module->name . '.features.inc') !== FALSE) {
+            strpos($modulefile, $moduleName . '.features.inc') !== FALSE) {
             $modules['type'] = "Feature";
           }
         }
-        $filename = $filelocation . "/" . $module->name . ".info";
+        $filename = $filelocation . "/" . $moduleName . ".info";
         if (empty($second)) {
           if (file_exists($filename)) {
             $modulefile = file_get_contents($filename);
@@ -236,9 +238,9 @@ class EvaluationImplementation {
           continue;
         }
         else {
-          $line = self::upgradeCheckCountLines($name);
-          $modules['lines'] += $line;
-          $modules['files'][$name] = $line;
+          $data = self::upgradeCheckCountLines($name, $moduleName);
+          $modules['lines'] += $data['all_strings'];
+          $modules['files'][$name] = $data;
         }
       }
     }
@@ -250,13 +252,51 @@ class EvaluationImplementation {
   /**
    * Calculates file`s number of lines.
    */
-  private static function upgradeCheckCountLines($file) {
+  private static function upgradeCheckCountLines($file, $name) {
     $allC = $commentC = $codeC = $emptyC = $badEC = 0;
+    $functions = $result = array();
     $handle = fopen($file, "r");
     $regComment = '/^(\s*\/+\*+\*+)|(\s+\*+\s+)|(\s+\*+\/+)|(\s+\/+\/+)/';
+    $regFunction = '/function\s*(_*)(' . $name . '_)*(\w+)\s*\(/';
+    $regClass = '/class\s*(\w+)\s*(\w+\s\w+)*\s\{/';
+    $regInterface = '/interface\s*(\w+)\s*(\w+\s\w+)*\s\{/';
     while (!feof($handle)) {
       $content = fgets($handle);
       ++$allC;
+      if (preg_match($regFunction, $content, $function)) {
+        if (!empty($function)) {
+          if (!empty($function[1]) && !empty($function[2]) && !empty($function[3])) {
+            $functions['custom_function'][] = $function[3];
+          }
+          elseif (empty($function[1]) && !empty($function[2]) && !empty($function[3])) {
+            $functions['function'][] = $function[3];
+          }
+          elseif (empty($function[1]) && empty($function[2]) && !empty($function[3])) {
+            $functions['object'][] = $function[3];
+          }
+        }
+      }
+      elseif (preg_match($regClass, $content, $class)) {
+        if (!empty($class) && !empty($class[1])) {
+          $className = $class[1];
+          $className .= !empty($class[2]) ? ' ' . $class[2] : '';
+          $functions['class'][] = $className;
+        }
+      }
+      elseif (preg_match($regClass, $content, $class)) {
+        if (!empty($class) && !empty($class[1])) {
+          $className = $class[1];
+          $className .= !empty($class[2]) ? ' ' . $class[2] : '';
+          $functions['class'][] = $className;
+        }
+      }
+      elseif (preg_match($regInterface, $content, $interface)) {
+        if (!empty($interface) && !empty($interface[1])) {
+          $interfaceName = $interface[1];
+          $interfaceName .= !empty($interface[2]) ? ' ' . $interface[2] : '';
+          $functions['interface'][] = $interfaceName;
+        }
+      }
       if ($content === "\n" || empty($content)) {
         ++$emptyC;
       }
@@ -271,8 +311,12 @@ class EvaluationImplementation {
       }
     }
     fclose($handle);
-    $result = $allC . '/' . $codeC . '/' . $commentC . '/' . $emptyC;
-    $result .= '/' . $badEC;
+    $result['all_strings'] = $allC;
+    $result['code_strings'] = $codeC;
+    $result['comment_strings'] = $commentC;
+    $result['empty_strings'] = $emptyC;
+    $result['bad_strings'] = $badEC;
+    $result['logic'] = $functions;
     return $result;
   }
 
