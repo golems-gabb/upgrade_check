@@ -76,50 +76,6 @@ class EvaluationCode {
   }
 
   /**
-   * Implements _upgrade_check_modules_evaluation().
-   */
-  public function modulesEvaluation($module) {
-    $modules = $modules['files'] = array();
-    $modules['lines'] = 0;
-    $modules['name'] = !empty($module['name']) ? $module['name'] : '';
-    $modules['schema_version'] = !empty($module['schema_version']) ? $module['schema_version'] : '';
-    $modules['package'] = !empty($module['info']['package']) ? $module['info']['package'] : $this->other;
-    if (!empty($module['info']['package']) && $module['info']['package'] === 'Core') {
-      $modules['type_status'] = $this->core;
-    }
-    else {
-      $param = array($this->custom, $this->contribNoUpgrade);
-      $data = $this->updateProcessFetchTask($module);
-      $modules['type_status'] = !empty($data['type']) ? $data['type'] : $this->custom;
-      $modules['package'] = !empty($module['info']['package']) ? $module['info']['package'] : $this->other;
-      if (!empty($data) && !empty($data['type']) && in_array($data['type'], $param, TRUE)) {
-        $filePath = substr($module['filename'], 0, strripos($module['filename'], '/'));
-        $recursiveDirectory = new \RecursivedirectoryIterator($filePath);
-        $recursiveIterator = new \RecursiveIteratorIterator($recursiveDirectory);
-        foreach ($recursiveIterator as $name => $object) {
-          $status = FALSE;
-          $ident = array('.info', '.txt', '/.', '/..', '.png', '.gif', '.jpeg');
-          foreach ($ident as $val) {
-            if (strpos($name, $val) !== FALSE) {
-              $status = TRUE;
-            }
-          }
-          if (!empty($status)) {
-            continue;
-          }
-          else {
-            $checkCode = $this->checkCode($name, $modules['name']);
-            $modules['lines'] += $checkCode['all_strings'];
-            $modules['files'][$name] = $checkCode;
-          }
-        }
-      }
-    }
-    $modules['version'] = !empty($module['info']['version']) ? $module['info']['version'] : '';
-    return $modules;
-  }
-
-  /**
    * Processes a task to fetch available update data for a single project.
    *
    * Once the release history XML data is downloaded, it is parsed and saved
@@ -163,24 +119,6 @@ class EvaluationCode {
   }
 
   /**
-   * Parses the XML of the Drupal release history info files.
-   *
-   * @param $xml
-   *   A raw XML string of available release data for a given project.
-   *
-   * @return
-   *   Array of parsed data about releases for a given project, and Array if
-   *   there was an error parsing the string.
-   */
-  private function parseXml($xml) {
-    if (!isset($xml->error) && !empty($xml->data)) {
-      module_load_include('inc', 'update', 'update.fetch');
-      $available = update_parse_xml($xml->data);
-    }
-    return !empty($available) ? $available : array();
-  }
-
-  /**
    * Generates the URL to fetch information about project updates.
    */
   private function updateBuildFetchUrl($data, $site_key = '', $old = FALSE) {
@@ -198,6 +136,44 @@ class EvaluationCode {
       }
     }
     return $url;
+  }
+
+  /**
+   * Returns the base of the URL to fetch available update data for a project.
+   *
+   * @param $project
+   *   The array of project information from update_get_projects().
+   *
+   * @return
+   *   The base of the URL used for fetching available update data. This does
+   *   not include the path elements to specify a particular project, version,
+   *   site_key, etc.
+   *
+   * @see _update_build_fetch_url()
+   */
+  private function updateGetFetchUrlBase($project) {
+    if (!empty($project['info']['project status url'])) {
+      return $project['info']['project status url'];
+    }
+    return variable_get('update_fetch_url', UPDATE_DEFAULT_URL);
+  }
+
+  /**
+   * Parses the XML of the Drupal release history info files.
+   *
+   * @param $xml
+   *   A raw XML string of available release data for a given project.
+   *
+   * @return
+   *   Array of parsed data about releases for a given project, and Array if
+   *   there was an error parsing the string.
+   */
+  private function parseXml($xml) {
+    if (!isset($xml->error) && !empty($xml->data)) {
+      module_load_include('inc', 'update', 'update.fetch');
+      $available = update_parse_xml($xml->data);
+    }
+    return !empty($available) ? $available : array();
   }
 
   /**
@@ -234,26 +210,6 @@ class EvaluationCode {
     $result['bad_strings'] = $badEC;
     $result['logic'] = $functions;
     return $result;
-  }
-
-  /**
-   * Returns the base of the URL to fetch available update data for a project.
-   *
-   * @param $project
-   *   The array of project information from update_get_projects().
-   *
-   * @return
-   *   The base of the URL used for fetching available update data. This does
-   *   not include the path elements to specify a particular project, version,
-   *   site_key, etc.
-   *
-   * @see _update_build_fetch_url()
-   */
-  private function updateGetFetchUrlBase($project) {
-    if (!empty($project['info']['project status url'])) {
-      return $project['info']['project status url'];
-    }
-    return variable_get('update_fetch_url', UPDATE_DEFAULT_URL);
   }
 
   /**
@@ -296,6 +252,50 @@ class EvaluationCode {
       }
     }
     return !empty($functions) ? $functions : '';
+  }
+
+  /**
+   * Implements _upgrade_check_modules_evaluation().
+   */
+  public function modulesEvaluation($module) {
+    $modules = $modules['files'] = array();
+    $modules['lines'] = 0;
+    $modules['name'] = !empty($module['name']) ? $module['name'] : '';
+    $modules['schema_version'] = !empty($module['schema_version']) ? $module['schema_version'] : '';
+    $modules['package'] = !empty($module['info']['package']) ? $module['info']['package'] : $this->other;
+    if (!empty($module['info']['package']) && $module['info']['package'] === 'Core') {
+      $modules['type_status'] = $this->core;
+    }
+    else {
+      $param = array($this->custom, $this->contribNoUpgrade);
+      $data = $this->updateProcessFetchTask($module);
+      $modules['type_status'] = !empty($data['type']) ? $data['type'] : $this->custom;
+      $modules['package'] = !empty($module['info']['package']) ? $module['info']['package'] : $this->other;
+      if (!empty($data) && !empty($data['type']) && in_array($data['type'], $param, TRUE)) {
+        $filePath = substr($module['filename'], 0, strripos($module['filename'], '/'));
+        $recursiveDirectory = new \RecursivedirectoryIterator($filePath);
+        $recursiveIterator = new \RecursiveIteratorIterator($recursiveDirectory);
+        foreach ($recursiveIterator as $name => $object) {
+          $status = FALSE;
+          $ident = array('.info', '.txt', '/.', '/..', '.png', '.gif', '.jpeg');
+          foreach ($ident as $val) {
+            if (strpos($name, $val) !== FALSE) {
+              $status = TRUE;
+            }
+          }
+          if (!empty($status)) {
+            continue;
+          }
+          else {
+            $checkCode = $this->checkCode($name, $modules['name']);
+            $modules['lines'] += $checkCode['all_strings'];
+            $modules['files'][$name] = $checkCode;
+          }
+        }
+      }
+    }
+    $modules['version'] = !empty($module['info']['version']) ? $module['info']['version'] : '';
+    return $modules;
   }
   //if (function_exists('drupal_get_path')) {
 

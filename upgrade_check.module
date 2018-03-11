@@ -16,6 +16,7 @@ define('UPGRADE_CHECK_ACCESS', 'administer upgrade check');
 define('UPGRADE_CHECK_SETTINGS_FORM', 'upgrade_check_settings_form');
 define('UPGRADE_CHECK_REPLACE_ENTITY_NAME', UPGRADE_CHECK_SETTINGS_FORM . '_enity_name');
 define('UPGRADE_CHECK_SALT_FIELD_NAME', 'upgrade_check_test_enity_name');
+define('UPGRADE_CHECK_DATA_METHOD', 'data_transfer_method');
 
 /**
  * Implements hook_menu().

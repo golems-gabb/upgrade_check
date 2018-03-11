@@ -13,11 +13,27 @@ class EvaluationImplementation {
    */
   public static function upgradeCheckForm() {
     $form = array();
-    $text = 'Welcome to upgrade check per Drupal 8.';
+    $form['analyze'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Analyze'),
+    );
+    $text = 'Welcome to upgrade check per Drupal 8. ';
     $text .= 'Click on the link to get the upgrade score of your webresource.';
-    $form['description'] = array(
-      '#type' => 'markup',
-      '#markup' => t('@text', array('@text' => $text)) . '<br>',
+    $form['analyze']['description'] = array(
+      '#type' => 'item',
+      '#markup' => t('!text', array('!text' => $text)),
+    );
+    $form['analyze'][UPGRADE_CHECK_DATA_METHOD] = array(
+      '#type' => 'radios',
+      '#title' => t('Data transfer method'),
+      '#description' => t('Depending on the method selected, the method for data transfer for analysis will be changed.'),
+      '#options' => array(
+        'manual' => t('Manual'),
+        'semiautomatic' => t('Semiautomatic'),
+        'automatic' => t('Automatic'),
+      ),
+      '#disabled' => 'disabled',
+      '#default_value' => variable_get(UPGRADE_CHECK_DATA_METHOD, 'manual'),
     );
     $form['submit'] = array(
       '#type' => 'submit',
@@ -31,31 +47,42 @@ class EvaluationImplementation {
    */
   public static function upgradeCheckJsonForm() {
     $form = array();
-    $text = 'Their is no json file to download.';
-    $text .= 'Please Create one by clicking the below link';
     if (file_exists(variable_get(UPGRADE_CHECK_JSON_PATH))) {
+      $form['download'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Download JSON file'),
+      );
       $options = array(
         'absolute' => TRUE,
         'html' => TRUE,
         'attributes' => array('target' => '_blank'),
       );
       $link = l('Upload Json', UPGRADE_CHECK_URL, $options);
-      $markup = 'Please follow the steps to complete migration check';
-      $markup .= ' process<br> ';
-      $markup .= '1.Download Json File from the given below link.<br>';
-      $markup .= '2.Upload the json file here -->';
-      $markupText = $markup . ' ' . $link . '.<br>';
-      $form['description'] = array(
-        '#type' => 'markup',
-        '#markup' => $markupText,
+      $form['download']['description'] = array(
+        '#type' => 'item',
+        '#markup' => t('Please follow the steps to complete migration check process:'),
+      );
+      $form['download']['description_list_one'] = array(
+        '#type' => 'item',
+        '#markup' => t('I - Download Json File from the given below link.'),
+      );
+      $form['download']['description_list_two'] = array(
+        '#type' => 'item',
+        '#markup' => t('II - Upload the json file here --> !link',
+          array(
+            '!link' => $link,
+          )
+        ),
       );
       $form['submit'] = array(
         '#type' => 'submit',
-        '#value' => 'Download JSON file',
+        '#value' => 'Download JSON',
       );
     }
     else {
-      drupal_set_message(t('@text', array('@text' => $text)));
+      $text = 'Their is no json file to download. ';
+      $text .= 'Please create one by clicking the below link!';
+      drupal_set_message(t('!text', array('!text' => $text)));
       drupal_goto(UPGRADE_CHECK_EVALUATION);
     }
     return $form;

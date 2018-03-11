@@ -14,8 +14,9 @@ function upgrade_check_uninstall() {
     UPGRADE_CHECK_SETTINGS_FORM,
     UPGRADE_CHECK_REPLACE_ENTITY_NAME,
     UPGRADE_CHECK_SALT_FIELD_NAME,
+    UPGRADE_CHECK_DATA_METHOD,
   );
-  foreach ($variables  as $variable) {
+  foreach ($variables as $variable) {
     variable_del($variable);
   }
 }
