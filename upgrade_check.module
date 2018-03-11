@@ -7,15 +7,17 @@
 
 require_once DRUPAL_ROOT . '/' . drupal_get_path('module', 'upgrade_check') . '/includes/EvaluationImplementation.php';
 
-define('UPGRADE_CHECK_PATCH', 'admin/config/upgrade-check');
-define('UPGRADE_CHECK_EVALUATION', UPGRADE_CHECK_PATCH . '/evaluation');
-define('UPGRADE_CHECK_JSON', UPGRADE_CHECK_PATCH . '/json-download');
+define('UPGRADE_CHECK_PATH', 'admin/config/upgrade-check');
+define('UPGRADE_CHECK_EVALUATION', UPGRADE_CHECK_PATH . '/evaluation');
+define('UPGRADE_CHECK_JSON', UPGRADE_CHECK_PATH . '/json-download');
+define('UPGRADE_CHECK_JSON_PATH', 'upgrade_check_json_file_path');
+define('UPGRADE_CHECK_URL', 'https://golems.site/evaluation/upgrade');
 
 /**
  * Implements hook_menu().
  */
 function upgrade_check_menu() {
-  $items[UPGRADE_CHECK_PATCH] = array(
+  $items[UPGRADE_CHECK_PATH] = array(
     'title' => 'Drupal 8 upgrade',
     'description' => 'Drupal 8 upgrade.',
     'page callback' => 'system_admin_menu_block_page',

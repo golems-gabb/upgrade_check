@@ -1,0 +1,13 @@
+<?php
+
+/**
+ * @file
+ * Install file for the upgrade_check module.
+ */
+
+/**
+ * Implements hook_uninstall().
+ */
+function upgrade_check_uninstall() {
+  variable_del(UPGRADE_CHECK_JSON_PATH);
+}

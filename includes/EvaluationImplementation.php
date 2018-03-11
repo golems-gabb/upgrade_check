@@ -33,14 +33,13 @@ class EvaluationImplementation {
     $form = array();
     $text = 'Their is no json file to download.';
     $text .= 'Please Create one by clicking the below link';
-    if (file_exists(variable_get('json_file_patch'))) {
+    if (file_exists(variable_get(UPGRADE_CHECK_JSON_PATH))) {
       $options = array(
         'absolute' => TRUE,
         'html' => TRUE,
         'attributes' => array('target' => '_blank'),
       );
-      $url = 'https:/gole.ms/evaluation/upgrade';
-      $link = l('Upload Json', $url, $options);
+      $link = l('Upload Json', UPGRADE_CHECK_URL, $options);
       $markup = 'Please follow the steps to complete migration check';
       $markup .= ' process<br> ';
       $markup .= '1.Download Json File from the given below link.<br>';
@@ -105,6 +104,7 @@ class EvaluationImplementation {
     $themes = (new EvaluationCode)->themesEvaluation($theme);
     $context['results']['themes'][] = $themes;
     $context['sandbox']['progress']++;
+    return '';
   }
 
   /**
@@ -117,6 +117,7 @@ class EvaluationImplementation {
     $modules = (new EvaluationCode)->modulesEvaluation($module);
     $context['results']['modules'][] = $modules;
     $context['sandbox']['progress']++;
+    return '';
   }
 
   /**
@@ -398,8 +399,8 @@ class EvaluationImplementation {
     $data['themes'] = $context['results']['themes'];
     $response['data'] = $data;
     $file_name = $response['data']['site_info']['site_name'] . '.' . 'json';
-    $file_path = file_unmanaged_save_data(json_encode($response), $file_name, FILE_EXISTS_REPLACE);
-    variable_set('json_file_patch', $file_path);
+    $file_path = file_unmanaged_save_data(drupal_json_encode($response), $file_name, FILE_EXISTS_REPLACE);
+    variable_set(UPGRADE_CHECK_JSON_PATH, $file_path);
     return FALSE;
   }
 
@@ -408,7 +409,7 @@ class EvaluationImplementation {
    */
   public static function upgradeCheckJsonFormSubmit() {
     $siteName = variable_get('site_name', 'Drupal');
-    $filePath = variable_get('json_file_patch');
+    $filePath = variable_get(UPGRADE_CHECK_JSON_PATH);
     $file = fopen($filePath, 'r') or die('Please give suitable Permission to files folder');
     $fileSize = filesize($filePath);
     header('Content-type: application/json');
@@ -424,8 +425,8 @@ class EvaluationImplementation {
       flush();
     }
     fclose($file);
-    file_unmanaged_delete(variable_get('json_file_patch'));
-    variable_del('json_file_patch');
+    file_unmanaged_delete(variable_get(UPGRADE_CHECK_JSON_PATH));
+    variable_del(UPGRADE_CHECK_JSON_PATH);
     drupal_exit();
     return FALSE;
   }
