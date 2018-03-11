@@ -11,7 +11,11 @@ define('UPGRADE_CHECK_PATH', 'admin/config/upgrade-check');
 define('UPGRADE_CHECK_EVALUATION', UPGRADE_CHECK_PATH . '/evaluation');
 define('UPGRADE_CHECK_JSON', UPGRADE_CHECK_PATH . '/json-download');
 define('UPGRADE_CHECK_JSON_PATH', 'upgrade_check_json_file_path');
-define('UPGRADE_CHECK_URL', 'https://golems.site/evaluation/upgrade');
+define('UPGRADE_CHECK_URL', 'https://site/evaluation/upgrade');
+define('UPGRADE_CHECK_ACCESS', 'administer upgrade check');
+define('UPGRADE_CHECK_SETTINGS_FORM', 'upgrade_check_settings_form');
+define('UPGRADE_CHECK_REPLACE_ENTITY_NAME', UPGRADE_CHECK_SETTINGS_FORM . '_enity_name');
+define('UPGRADE_CHECK_SALT_FIELD_NAME', 'upgrade_check_test_enity_name');
 
 /**
  * Implements hook_menu().
@@ -29,15 +33,23 @@ function upgrade_check_menu() {
     'title' => 'Drupal 8 upgrade evaluation',
     'description' => 'Drupal 8 upgrade evaluation.',
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('upgrade_check_form'),
-    'access arguments' => array('administer upgrade check'),
+    'page arguments' => array('_upgrade_check_form'),
+    'access arguments' => array(UPGRADE_CHECK_ACCESS),
+  );
+  $items[UPGRADE_CHECK_PATH . '/settings'] = array(
+    'title' => 'Drupal 8 upgrade settings',
+    'description' => 'Drupal 8 upgrade settings page.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('_upgrade_check_settings_form'),
+    'access arguments' => array(UPGRADE_CHECK_ACCESS),
   );
   $items[UPGRADE_CHECK_JSON] = array(
-    'title' => 'Follow the Steps to get your upgrade score',
-    'description' => 'Download json result',
+    'title' => 'Download json result',
+    'description' => 'Download json result page.',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('_upgrade_check_json_form'),
-    'access arguments' => array('administer upgrade check json download'),
+    'access arguments' => array(UPGRADE_CHECK_ACCESS),
+    'type' => MENU_DEFAULT_LOCAL_TASK,
   );
   return $items;
 }
@@ -45,14 +57,14 @@ function upgrade_check_menu() {
 /**
  * Implements hook_form().
  */
-function upgrade_check_form() {
+function _upgrade_check_form() {
   return \Upgrade_check\EvaluationImplementation::upgradeCheckForm();
 }
 
 /**
  * Implement hook_form_submit
  */
-function upgrade_check_form_submit($form, &$form_state) {
+function _upgrade_check_form_submit($form, &$form_state) {
   return \Upgrade_check\EvaluationImplementation::upgradeCheckFormSubmit();
 }
 
@@ -89,6 +101,13 @@ function _upgrade_check_json_finished($success, $results, $operations) {
  */
 function _upgrade_check_json_form() {
   return \Upgrade_check\EvaluationImplementation::upgradeCheckJsonForm();
+}
+
+/**
+ * Function download json.
+ */
+function _upgrade_check_settings_form() {
+  return \Upgrade_check\EvaluationImplementation::upgradeCheckSettingsForm();
 }
 
 /**

@@ -62,6 +62,37 @@ class EvaluationImplementation {
   }
 
   /**
+   * Implements _upgrade_check_settings_form().
+   */
+  public static function upgradeCheckSettingsForm() {
+    $form[UPGRADE_CHECK_SETTINGS_FORM] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Settings'),
+    );
+    $form[UPGRADE_CHECK_SETTINGS_FORM][UPGRADE_CHECK_REPLACE_ENTITY_NAME] = array(
+      '#type' => 'radios',
+      '#title' => t('Replace enity names'),
+      '#options' => array('no' => t('No'), 'yes' => t('Yes')),
+      '#default_value' => variable_get(UPGRADE_CHECK_REPLACE_ENTITY_NAME, 'no'),
+    );
+    $form[UPGRADE_CHECK_SETTINGS_FORM][UPGRADE_CHECK_SALT_FIELD_NAME] = array(
+      '#type' => 'textfield',
+      '#title' => t('Default salt'),
+      '#description' => t('Automatic salt generation to encrypt real entity names.'),
+      '#disabled' => 'disabled',
+      '#default_value' => variable_get(UPGRADE_CHECK_SALT_FIELD_NAME, md5(uniqid(rand()))),
+      '#states' => array(
+        'visible' => array(
+          ':input[name="' . UPGRADE_CHECK_REPLACE_ENTITY_NAME . '"]' => array(
+            'value' => 'yes',
+          ),
+        ),
+      ),
+    );
+    return system_settings_form($form);
+  }
+
+  /**
    * Implements upgrade_check_form_submit().
    */
   public static function upgradeCheckFormSubmit() {
@@ -69,7 +100,7 @@ class EvaluationImplementation {
     $data = $operations = array();
     $evIm = new EvaluationImplementation;
     $data['site_info'] = array(
-      'site_name' => variable_get('site_name', 'Drupal'),
+      'site_name' => $evIm->generateCryptName(variable_get('site_name', 'Drupal')),
       'base_url' => $base_url,
       'core_version' => VERSION,
     );
@@ -153,11 +184,12 @@ class EvaluationImplementation {
     );
     $links = $this->generateSql($param);
     foreach ($links as $link) {
-      if (empty($result[$link->menu_name])) {
-        $result[$link->menu_name] = 1;
+      $menuName = $this->generateCryptName($link->menu_name);
+      if (empty($result[$menuName])) {
+        $result[$menuName] = 1;
       }
       else {
-        ++$result[$link->menu_name];
+        ++$result[$menuName];
       }
     }
     return $result;
@@ -175,7 +207,7 @@ class EvaluationImplementation {
     );
     $nodes = $this->generateSql($param);
     foreach ($nodes as $node) {
-      $result[$node->type] = $node->module;
+      $result[$this->generateCryptName($node->type)] = $node->module;
     }
     return $result;
   }
@@ -184,7 +216,6 @@ class EvaluationImplementation {
    * Fetch fields data.
    */
   private function upgradeCheckFieldsData() {
-    $result = array();
     $param = array(
       't' => 'field_config_instance',
       'a' => 'fci',
@@ -198,6 +229,13 @@ class EvaluationImplementation {
       ),
     );
     $result = $this->generateSql($param);
+    if (!empty($result)) {
+      foreach ($result as &$value) {
+        if (!empty($value) && !empty($value->bundle)) {
+          $value->bundle = $this->generateCryptName($value->bundle);
+        }
+      }
+    }
     return $result;
   }
 
@@ -211,11 +249,12 @@ class EvaluationImplementation {
     if (!empty($taxonomyTerms) && !empty($taxonomyVocabulary)) {
       foreach ($taxonomyTerms as $key => $value) {
         if (!empty($taxonomyVocabulary[$value])) {
-          if (empty($result[$taxonomyVocabulary[$value]])) {
-            $result[$taxonomyVocabulary[$value]] = 1;
+          $vocabularyName = $this->generateCryptName($taxonomyVocabulary[$value]);
+          if (empty($result[$vocabularyName])) {
+            $result[$vocabularyName] = 1;
           }
           else {
-            ++$result[$taxonomyVocabulary[$value]];
+            ++$result[$vocabularyName];
           }
         }
       }
@@ -306,7 +345,7 @@ class EvaluationImplementation {
         );
         $display_count = $this->generateSql($param);
         array_push($viewsdata, array(
-          'view' => $view->name,
+          'view' => $this->generateCryptName($view->name),
           'description' => $view->description,
           'displays' => count($display_count),
         ));
@@ -429,6 +468,18 @@ class EvaluationImplementation {
     variable_del(UPGRADE_CHECK_JSON_PATH);
     drupal_exit();
     return FALSE;
+  }
+
+  /**
+   * Crying values.
+   */
+  private function generateCryptName($name) {
+    $crypt = variable_get(UPGRADE_CHECK_REPLACE_ENTITY_NAME, 'no');
+    if (!empty($crypt) && $crypt === 'yes') {
+      $salt = variable_get(UPGRADE_CHECK_SALT_FIELD_NAME, '');
+      $name = md5($name . $salt);
+    }
+    return $name;
   }
 
 }

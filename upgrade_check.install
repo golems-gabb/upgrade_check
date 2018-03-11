@@ -9,5 +9,13 @@
  * Implements hook_uninstall().
  */
 function upgrade_check_uninstall() {
-  variable_del(UPGRADE_CHECK_JSON_PATH);
+  $variables = array(
+    UPGRADE_CHECK_JSON_PATH,
+    UPGRADE_CHECK_SETTINGS_FORM,
+    UPGRADE_CHECK_REPLACE_ENTITY_NAME,
+    UPGRADE_CHECK_SALT_FIELD_NAME,
+  );
+  foreach ($variables  as $variable) {
+    variable_del($variable);
+  }
 }
