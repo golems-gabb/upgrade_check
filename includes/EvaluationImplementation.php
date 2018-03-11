@@ -70,7 +70,11 @@ class EvaluationImplementation {
     $data = $operations = array();
     $evIm = new EvaluationImplementation;
     $siteName = variable_get('site_name', 'Drupal');
-    $data['info'] = array('site_name' => $siteName, 'base_url' => $base_url);
+    $data['info'] = array(
+      'site_name' => $siteName,
+      'base_url' => $base_url,
+      'core_version' => VERSION,
+    );
     $evIm->upgradeCheckEntityData($data);
     $evIm->upgradeCheckModulesData($operations);
     $evIm->upgradeCheckThemesData($operations);
