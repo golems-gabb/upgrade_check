@@ -69,9 +69,8 @@ class EvaluationImplementation {
     global $base_url;
     $data = $operations = array();
     $evIm = new EvaluationImplementation;
-    $siteName = variable_get('site_name', 'Drupal');
-    $data['info'] = array(
-      'site_name' => $siteName,
+    $data['site_info'] = array(
+      'site_name' => variable_get('site_name', 'Drupal'),
       'base_url' => $base_url,
       'core_version' => VERSION,
     );
@@ -122,13 +121,13 @@ class EvaluationImplementation {
    */
   private function upgradeCheckEntityData(&$data) {
     $keys = array(
-      'nodes' => array('node', 'nid', 'n'),
-      'file_managed' => array('file_usage', 'fid', 'f'),
-      'users' => array('users', 'uid', 'u'),
-      'image_styles' => array('image_styles', 'isid', 'i'),
-      'roles' => array('users_roles', 'rid', 'u'),
-      'languages' => array('languages', 'language', 'l'),
-      'block_custom' => array('block_custom', 'bid', 'b'),
+      'nodes_count' => array('node', 'nid', 'n'),
+      'existing_files_count' => array('file_usage', 'fid', 'f'),
+      'users_count' => array('users', 'uid', 'u'),
+      'image_styles_count' => array('image_styles', 'isid', 'i'),
+      'roles_count' => array('users_roles', 'rid', 'u'),
+      'languages_count' => array('languages', 'language', 'l'),
+      'block_custom_count' => array('block_custom', 'bid', 'b'),
     );
     foreach ($keys as $key => $val) {
       $param = array('t' => $val[0], 'a' => $val[2], 'f' => array($val[1]));
