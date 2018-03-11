@@ -7,9 +7,9 @@
 
 require_once DRUPAL_ROOT . '/' . drupal_get_path('module', 'upgrade_check') . '/includes/EvaluationImplementation.php';
 
-define("UPGRADE_CHECK_PATCH", 'admin/config/upgrade-check');
-define("UPGRADE_CHECK_EVALUATION", UPGRADE_CHECK_PATCH . '/evaluation');
-define("UPGRADE_CHECK_JSON", UPGRADE_CHECK_PATCH . '/json-download');
+define('UPGRADE_CHECK_PATCH', 'admin/config/upgrade-check');
+define('UPGRADE_CHECK_EVALUATION', UPGRADE_CHECK_PATCH . '/evaluation');
+define('UPGRADE_CHECK_JSON', UPGRADE_CHECK_PATCH . '/json-download');
 
 /**
  * Implements hook_menu().

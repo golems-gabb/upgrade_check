@@ -2,6 +2,10 @@
 
 namespace Upgrade_check;
 
+require_once __DIR__ . '/EvaluationCode.php';
+
+use Upgrade_check\EvaluationCode;
+
 class EvaluationImplementation {
 
   /**
@@ -23,40 +27,13 @@ class EvaluationImplementation {
   }
 
   /**
-   * Implements upgrade_check_json_finished().
-   */
-  public static function upgradeCheckJsonFinished($success) {
-    if ($success) {
-      drupal_goto(UPGRADE_CHECK_JSON);
-    }
-    else {
-      drupal_set_message(t('There were errors during creating json file.Please try again'));
-    }
-    return FALSE;
-  }
-
-  /**
-   * Implements upgrade_check_create_json().
-   */
-  public static function upgradeCheckCreateJson($data, &$context) {
-    $response = array();
-    $data['modules'] = $context['results']['modules'];
-    $data['themes'] = $context['results']['themes'];
-    $response['data'] = $data;
-    $file_name = $response['data']['info']['site_name'] . "." . "json";
-    $file_path = file_unmanaged_save_data(json_encode($response), $file_name, FILE_EXISTS_REPLACE);
-    variable_set("json_file_patch", $file_path);
-    return FALSE;
-  }
-
-  /**
    * Implements _upgrade_check_json_form().
    */
   public static function upgradeCheckJsonForm() {
     $form = array();
     $text = 'Their is no json file to download.';
     $text .= 'Please Create one by clicking the below link';
-    if (file_exists(variable_get("json_file_patch"))) {
+    if (file_exists(variable_get('json_file_patch'))) {
       $options = array(
         'absolute' => TRUE,
         'html' => TRUE,
@@ -116,208 +93,24 @@ class EvaluationImplementation {
   }
 
   /**
-   * Implements _upgrade_check_json_form_submit().
-   */
-  public static function upgradeCheckJsonFormSubmit() {
-    $siteName = variable_get('site_name', 'Drupal');
-    $filePath = variable_get("json_file_patch");
-    $file = fopen($filePath, 'r') or die("Please give suitable Permission to files folder");
-    $fileSize = filesize($filePath);
-    header("Content-type: application/json");
-    header("Content-Type: application/force-download");
-    header("Content-Type: application/download");
-    header("Content-Description: File Transfer");
-    header("Content-Disposition: attachment;filename=" . $siteName . "." . "json");
-    header("Content-length: $fileSize");
-    header("Cache-control: private"); //use this to open files directly
-    while (!feof($file)) {
-      $buffer = fread($file, 2048);
-      echo $buffer;
-      flush();
-    }
-    fclose($file);
-    file_unmanaged_delete(variable_get("json_file_patch"));
-    variable_del("json_file_patch");
-    drupal_exit();
-    return FALSE;
-  }
-
-  /**
    * Implements _upgrade_check_themes_evaluation().
    */
   public static function upgradeCheckThemesEvaluation($theme, &$context) {
-    $themes = array();
-    $themes['lines'] = 0;
-    $themes['files'] = NULL;
-    $themes['type'] = "Enabled";
-    $themeName = !empty($theme->name) ? $theme->name : '';
-    $theme_path = drupal_get_path('theme', variable_get('theme_default', NULL));
-    $default_theme = substr($theme_path, strrpos($theme_path, "/") + 1);
-    if ($themeName == $default_theme) {
-      $themes['type'] = "Default";
-    }
-    $filelocation = substr($theme->filename, 0, strripos($theme->filename, '/'));
-    $directory = new \RecursivedirectoryIterator($filelocation);
-    $iterator = new \RecursiveIteratorIterator($directory);
-    $ident = array('.info', '.txt', '/.', '/..', '.png', '.gif', '.jpeg');
-    foreach ($iterator as $name => $object) {
-      $status = FALSE;
-      foreach ($ident as $val) {
-        if (strpos($name, $val) !== FALSE) {
-          $status = TRUE;
-        }
-      }
-      if (!empty($status)) {
-        continue;
-      }
-      else {
-        $data = self::upgradeCheckCountLines($name, $themeName);
-        $themes['lines'] += $data['all_strings'];
-        $themes['files'][$name] = $data;
-      }
-    }
-    $themes['name'] = $theme->name;
+    $themes = (new EvaluationCode)->themesEvaluation($theme);
     $context['results']['themes'][] = $themes;
+    $context['sandbox']['progress']++;
   }
 
   /**
    * Implements _upgrade_check_modules_evaluation().
    */
   public static function upgradeCheckModulesEvaluation($module, &$context) {
-    $modules = $modules['files'] = array();
-    $modules['type'] = "Custom";
-    $modules['lines'] = 0;
-    $moduleName = !empty($module->name) ? $module->name : '';
     if (empty($context['sandbox'])) {
       $context['sandbox']['progress'] = 0;
-      $first = $second = 0;
     }
-    $modules['version'] = $module->schema_version;
-    $filelocation = substr($module->filename, 0, strripos($module->filename, '/'));
-    if (substr($filelocation, '0', '1') == 'm') {
-      $modules['type'] = "Core";
-    }
-    else {
-      $directory = new \RecursivedirectoryIterator($filelocation);
-      $iterator = new \RecursiveIteratorIterator($directory);
-      foreach ($iterator as $name => $object) {
-        $status = FALSE;
-        $filename = $filelocation . "/" . $moduleName . ".module";
-        if (empty($first)) {
-          if (file_exists($filename)) {
-            $modulefile = file_get_contents($filename);
-          }
-          else {
-            $modulefile = "No Such File";
-          }
-          if (strpos($modulefile, 'include_once') !== FALSE &&
-            strpos($modulefile, $moduleName . '.features.inc') !== FALSE) {
-            $modules['type'] = "Feature";
-          }
-        }
-        $filename = $filelocation . "/" . $moduleName . ".info";
-        if (empty($second)) {
-          if (file_exists($filename)) {
-            $modulefile = file_get_contents($filename);
-          }
-          else {
-            $modulefile = "No Such File";
-          }
-          if (strpos($modulefile, 'Information added by Drupal.org') !== FALSE || strpos($modulefile, 'datestamp') !== FALSE) {
-            $modules['type'] = "Contrib";
-          }
-          $second = 1;
-        }
-        $ident = array('.info', '.txt', '/.', '/..', '.png', '.gif', '.jpeg');
-        foreach ($ident as $val) {
-          if (strpos($name, $val) !== FALSE) {
-            $status = TRUE;
-          }
-        }
-        if (!empty($status)) {
-          continue;
-        }
-        else {
-          $data = self::upgradeCheckCountLines($name, $moduleName);
-          $modules['lines'] += $data['all_strings'];
-          $modules['files'][$name] = $data;
-        }
-      }
-    }
-    $modules['name'] = $module->name;
+    $modules = (new EvaluationCode)->modulesEvaluation($module);
     $context['results']['modules'][] = $modules;
     $context['sandbox']['progress']++;
-  }
-
-  /**
-   * Calculates file`s number of lines.
-   */
-  private static function upgradeCheckCountLines($file, $name) {
-    $allC = $commentC = $codeC = $emptyC = $badEC = 0;
-    $functions = $result = array();
-    $handle = fopen($file, "r");
-    $regComment = '/^(\s*\/+\*+\*+)|(\s+\*+\s+)|(\s+\*+\/+)|(\s+\/+\/+)/';
-    $regFunction = '/function\s*(_*)(' . $name . '_)*(\w+)\s*\(/';
-    $regClass = '/class\s*(\w+)\s*(\w+\s\w+)*\s\{/';
-    $regInterface = '/interface\s*(\w+)\s*(\w+\s\w+)*\s\{/';
-    while (!feof($handle)) {
-      $content = fgets($handle);
-      ++$allC;
-      if (preg_match($regFunction, $content, $function)) {
-        if (!empty($function)) {
-          if (!empty($function[1]) && !empty($function[2]) && !empty($function[3])) {
-            $functions['custom_function'][] = $function[3];
-          }
-          elseif (empty($function[1]) && !empty($function[2]) && !empty($function[3])) {
-            $functions['function'][] = $function[3];
-          }
-          elseif (empty($function[1]) && empty($function[2]) && !empty($function[3])) {
-            $functions['object'][] = $function[3];
-          }
-        }
-      }
-      elseif (preg_match($regClass, $content, $class)) {
-        if (!empty($class) && !empty($class[1])) {
-          $className = $class[1];
-          $className .= !empty($class[2]) ? ' ' . $class[2] : '';
-          $functions['class'][] = $className;
-        }
-      }
-      elseif (preg_match($regClass, $content, $class)) {
-        if (!empty($class) && !empty($class[1])) {
-          $className = $class[1];
-          $className .= !empty($class[2]) ? ' ' . $class[2] : '';
-          $functions['class'][] = $className;
-        }
-      }
-      elseif (preg_match($regInterface, $content, $interface)) {
-        if (!empty($interface) && !empty($interface[1])) {
-          $interfaceName = $interface[1];
-          $interfaceName .= !empty($interface[2]) ? ' ' . $interface[2] : '';
-          $functions['interface'][] = $interfaceName;
-        }
-      }
-      if ($content === "\n" || empty($content)) {
-        ++$emptyC;
-      }
-      elseif ($content === "\r" || $content === "\r\n") {
-        ++$badEC;
-      }
-      elseif (preg_match($regComment, $content)) {
-        ++$commentC;
-      }
-      else {
-        ++$codeC;
-      }
-    }
-    fclose($handle);
-    $result['all_strings'] = $allC;
-    $result['code_strings'] = $codeC;
-    $result['comment_strings'] = $commentC;
-    $result['empty_strings'] = $emptyC;
-    $result['bad_strings'] = $badEC;
-    $result['logic'] = $functions;
-    return $result;
   }
 
   /**
@@ -461,23 +254,11 @@ class EvaluationImplementation {
    * Fetch data of all enabled modules.
    */
   private function upgradeCheckModulesData(&$operations) {
-    $param = array(
-      't' => 'system',
-      'a' => 's',
-      'f' => array('filename', 'name', 'schema_version'),
-      'c' => array(
-        array('f' => 'status', 'v' => 1),
-        array('f' => 'type', 'v' => 'module'),
-      ),
-    );
-    $system = $this->generateSql($param);
+    $system = system_list('module_enabled');
     foreach ($system as $module) {
-      if ($module->name === 'upgrade_check' || $module->name === 'standard') {
-        continue;
-      }
       $operations[] = array(
         '_upgrade_check_modules_evaluation',
-        array('module' => $module),
+        array('module' => (array) $module),
       );
     }
     return NULL;
@@ -487,20 +268,11 @@ class EvaluationImplementation {
    * Fetch data of all enabled themes.
    */
   private function upgradeCheckThemesData(&$operations) {
-    $param = array(
-      't' => 'system',
-      'a' => 's',
-      'f' => array('filename', 'name'),
-      'c' => array(
-        array('f' => 'status', 'v' => 1),
-        array('f' => 'type', 'v' => 'theme'),
-      ),
-    );
-    $themeSql = $this->generateSql($param, TRUE);
-    foreach ($themeSql as $theme) {
+    $themes = system_list('theme');
+    foreach ($themes as $theme) {
       $operations[] = array(
         '_upgrade_check_themes_evaluation',
-        array('theme' => $theme),
+        array('theme' => (array) $theme),
       );
     }
     return NULL;
@@ -540,7 +312,7 @@ class EvaluationImplementation {
    * Generate SQL.
    */
   private function generateSql($data, $dontAll = FALSE) {
-    $result = FALSE;
+    $result = array();
     if (!empty($data) && !empty($data['t']) && !empty($data['a'])) {
       $query = db_select($data['t'], $data['a']);
       if (!empty($data['j']) && !empty($data['j']['t'])) {
@@ -599,109 +371,57 @@ class EvaluationImplementation {
   }
 
   /**
-   * Processes a task to fetch available update data for a single project.
-   *
-   * Once the release history XML data is downloaded, it is parsed and saved
-   * into the {cache_update} table in an entry just for that project.
-   *
-   * @param $project
-   *   Associative array of information about the project to fetch data for.
-   *
-   * @return
-   *   TRUE if we fetched parsable XML, otherwise FALSE.
+   * Implements upgrade_check_json_finished().
    */
-  /*function _update_process_fetch_task($project) {
-    global $base_url;
-    $fail = &drupal_static(__FUNCTION__, array());
-    // This can be in the middle of a long-running batch, so REQUEST_TIME won't
-    // necessarily be valid.
-    $now = time();
-    if (empty($fail)) {
-      // If we have valid data about release history XML servers that we have
-      // failed to fetch from on previous attempts, load that from the cache.
-      if (($cache = _update_cache_get('fetch_failures')) && ($cache->expire > $now)) {
-        $fail = $cache->data;
-      }
-    }
-
-    $max_fetch_attempts = variable_get('update_max_fetch_attempts', UPDATE_MAX_FETCH_ATTEMPTS);
-
-    $success = FALSE;
-    $available = array();
-    $site_key = drupal_hmac_base64($base_url, drupal_get_private_key());
-    $url = _update_build_fetch_url($project, $site_key);
-    $fetch_url_base = _update_get_fetch_url_base($project);
-    $project_name = $project['name'];
-
-    if (empty($fail[$fetch_url_base]) || $fail[$fetch_url_base] < $max_fetch_attempts) {
-      $xml = drupal_http_request($url);
-      if (!isset($xml->error) && isset($xml->data)) {
-        $data = $xml->data;
-      }
-    }
-
-    if (!empty($data)) {
-      $available = update_parse_xml($data);
-      // @todo: Purge release data we don't need (http://drupal.org/node/238950).
-      if (!empty($available)) {
-        // Only if we fetched and parsed something sane do we return success.
-        $success = TRUE;
-      }
+  public static function upgradeCheckJsonFinished($success) {
+    if ($success) {
+      drupal_goto(UPGRADE_CHECK_JSON);
     }
     else {
-      $available['project_status'] = 'not-fetched';
-      if (empty($fail[$fetch_url_base])) {
-        $fail[$fetch_url_base] = 1;
-      }
-      else {
-        $fail[$fetch_url_base]++;
-      }
+      drupal_set_message(t('There were errors during creating json file.Please try again'));
     }
-
-    $frequency = variable_get('update_check_frequency', 1);
-    $cid = 'available_releases::' . $project_name;
-    _update_cache_set($cid, $available, $now + (60 * 60 * 24 * $frequency));
-
-    // Stash the $fail data back in the DB for the next 5 minutes.
-    _update_cache_set('fetch_failures', $fail, $now + (60 * 5));
-
-    // Whether this worked or not, we did just (try to) check for updates.
-    variable_set('update_last_check', $now);
-
-    // Now that we processed the fetch task for this project, clear out the
-    // record in {cache_update} for this task so we're willing to fetch again.
-    _update_cache_clear('fetch_task::' . $project_name);
-
-    return $success;
-  }*/
+    return FALSE;
+  }
 
   /**
-   * Clears out all the cached available update data and initiates re-fetching.
+   * Implements upgrade_check_create_json().
    */
-  /*function _update_refresh() {
-    module_load_include('inc', 'update', 'update.compare');
+  public static function upgradeCheckCreateJson($data, &$context) {
+    $response = array();
+    $data['modules'] = $context['results']['modules'];
+    $data['themes'] = $context['results']['themes'];
+    $response['data'] = $data;
+    $file_name = $response['data']['info']['site_name'] . '.' . 'json';
+    $file_path = file_unmanaged_save_data(json_encode($response), $file_name, FILE_EXISTS_REPLACE);
+    variable_set('json_file_patch', $file_path);
+    return FALSE;
+  }
 
-    // Since we're fetching new available update data, we want to clear
-    // our cache of both the projects we care about, and the current update
-    // status of the site. We do *not* want to clear the cache of available
-    // releases just yet, since that data (even if it's stale) can be useful
-    // during update_get_projects(); for example, to modules that implement
-    // hook_system_info_alter() such as cvs_deploy.
-    _update_cache_clear('update_project_projects');
-    _update_cache_clear('update_project_data');
-
-    $projects = update_get_projects();
-
-    // Now that we have the list of projects, we should also clear our cache of
-    // available release data, since even if we fail to fetch new data, we need
-    // to clear out the stale data at this point.
-    _update_cache_clear('available_releases::', TRUE);
-
-    foreach ($projects as $key => $project) {
-      update_create_fetch_task($project);
+  /**
+   * Implements _upgrade_check_json_form_submit().
+   */
+  public static function upgradeCheckJsonFormSubmit() {
+    $siteName = variable_get('site_name', 'Drupal');
+    $filePath = variable_get('json_file_patch');
+    $file = fopen($filePath, 'r') or die('Please give suitable Permission to files folder');
+    $fileSize = filesize($filePath);
+    header('Content-type: application/json');
+    header('Content-Type: application/force-download');
+    header('Content-Type: application/download');
+    header('Content-Description: File Transfer');
+    header('Content-Disposition: attachment;filename=' . $siteName . '.' . 'json');
+    header('Content-length: ' . $fileSize);
+    header('Cache-control: private'); //use this to open files directly
+    while (!feof($file)) {
+      $buffer = fread($file, 2048);
+      echo $buffer;
+      flush();
     }
-  }*/
-
-  //if (function_exists('drupal_get_path')) {
+    fclose($file);
+    file_unmanaged_delete(variable_get('json_file_patch'));
+    variable_del('json_file_patch');
+    drupal_exit();
+    return FALSE;
+  }
 
 }
