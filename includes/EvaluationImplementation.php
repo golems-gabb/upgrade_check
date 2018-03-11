@@ -99,6 +99,9 @@ class EvaluationImplementation {
    * Implements _upgrade_check_themes_evaluation().
    */
   public static function upgradeCheckThemesEvaluation($theme, &$context) {
+    if (empty($context['sandbox'])) {
+      $context['sandbox']['progress'] = 0;
+    }
     $themes = (new EvaluationCode)->themesEvaluation($theme);
     $context['results']['themes'][] = $themes;
     $context['sandbox']['progress']++;
@@ -394,7 +397,7 @@ class EvaluationImplementation {
     $data['modules'] = $context['results']['modules'];
     $data['themes'] = $context['results']['themes'];
     $response['data'] = $data;
-    $file_name = $response['data']['info']['site_name'] . '.' . 'json';
+    $file_name = $response['data']['site_info']['site_name'] . '.' . 'json';
     $file_path = file_unmanaged_save_data(json_encode($response), $file_name, FILE_EXISTS_REPLACE);
     variable_set('json_file_patch', $file_path);
     return FALSE;
