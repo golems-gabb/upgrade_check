@@ -84,6 +84,7 @@ class EvaluationCode {
     $modules['name'] = !empty($module['name']) ? $module['name'] : '';
     $modules['schema_version'] = !empty($module['schema_version']) ? $module['schema_version'] : '';
     $modules['package'] = !empty($module['info']['package']) ? $module['info']['package'] : $this->other;
+    $modules['parent_module'] = !empty($module['parent_module']) ? $module['parent_module'] : '';
     if (!empty($module['info']['package']) && $module['info']['package'] === 'Core') {
       $modules['type_status'] = $this->core;
     }
@@ -297,6 +298,64 @@ class EvaluationCode {
     }
     return !empty($functions) ? $functions : '';
   }
+
+  /**
+   * Check for submodules.
+   */
+  public static function upgradeCheckSubmodules($modules) {
+    if (!empty($modules)) {
+      foreach ($modules as $key => $module) {
+        if (!empty($module) && !empty($module->info['dependencies'])) {
+          foreach ($module->info['dependencies'] as $dependencies) {
+            if (!empty($dependencies) && !empty($modules[$dependencies])) {
+              $regSubmodules = '/\/modules\/' . $dependencies . '\/\w+/';
+              if (!empty($module->filename) && preg_match($regSubmodules, $module->filename)) {
+                $modules[$key]->parent_module = $dependencies;
+              }
+            }
+          }
+        }
+      }
+    }
+    return $modules;
+  }
+
+  /**
+   * Delete info for submodules.
+   */
+  public function upgradeCheckSubmodulesDeleteInfo($modules) {
+    if (!empty($modules)) {
+      $modules = $this->upgradeCheckConvertAssociateArray($modules);
+      $param = array($this->contrib, $this->core);
+      foreach ($modules as $key => $module) {
+        if (!empty($module) && !empty($module['parent_module'])) {
+          $pKey = $module['parent_module'];
+          if (!empty($modules[$pKey]) && !empty($modules[$pKey]['type_status'])
+            && in_array($modules[$pKey]['type_status'], $param, TRUE)) {
+            $modules[$key]['type_status'] = $modules[$pKey]['type_status'];
+            unset($modules[$key]['files']);
+          }
+        }
+      }
+    }
+    return $modules;
+  }
+
+  /**
+   * Convert to associate array.
+   */
+  public function upgradeCheckConvertAssociateArray($datas) {
+    if (!empty($datas)) {
+      foreach ($datas as $key => $data) {
+        if (!empty($data) && !empty($data['name'])) {
+          $datas[$data['name']] = $data;
+          unset($datas[$data['name']]['name'], $datas[$key]);
+        }
+      }
+    }
+    return $datas;
+  }
+
   //if (function_exists('drupal_get_path')) {
 
 }

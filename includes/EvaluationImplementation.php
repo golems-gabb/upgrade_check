@@ -259,9 +259,9 @@ class EvaluationImplementation {
     );
     $result = $this->generateSql($param);
     if (!empty($result)) {
-      foreach ($result as &$value) {
+      foreach ($result as $key => $value) {
         if (!empty($value) && !empty($value->bundle)) {
-          $value->bundle = $this->generateCryptName($value->bundle);
+          $result[$key]->bundle = $this->generateCryptName($value->bundle);
         }
       }
     }
@@ -329,7 +329,7 @@ class EvaluationImplementation {
    * Fetch data of all enabled modules.
    */
   private function upgradeCheckModulesData(&$operations) {
-    $system = system_list('module_enabled');
+    $system = EvaluationCode::upgradeCheckSubmodules(system_list('module_enabled'));
     foreach ($system as $module) {
       if (!empty($module->name) && $module->name !== $this->moduleName) {
         $operations[] = array(
@@ -464,9 +464,10 @@ class EvaluationImplementation {
    * Implements upgrade_check_create_json().
    */
   public static function upgradeCheckCreateJson($data, &$context) {
+    $eC = new EvaluationCode;
     $response = array();
-    $data['modules'] = $context['results']['modules'];
-    $data['themes'] = $context['results']['themes'];
+    $data['modules'] = $eC->upgradeCheckSubmodulesDeleteInfo($context['results']['modules']);
+    $data['themes'] = $eC->upgradeCheckConvertAssociateArray($context['results']['themes']);
     $response['data'] = $data;
     $file_name = $response['data']['site_info']['site_name'] . '.' . 'json';
     $file_path = file_unmanaged_save_data(drupal_json_encode($response), $file_name, FILE_EXISTS_REPLACE);
