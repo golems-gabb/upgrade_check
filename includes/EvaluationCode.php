@@ -76,6 +76,50 @@ class EvaluationCode {
   }
 
   /**
+   * Implements _upgrade_check_modules_evaluation().
+   */
+  public function modulesEvaluation($module) {
+    $modules = $modules['files'] = array();
+    $modules['lines'] = 0;
+    $modules['name'] = !empty($module['name']) ? $module['name'] : '';
+    $modules['schema_version'] = !empty($module['schema_version']) ? $module['schema_version'] : '';
+    $modules['package'] = !empty($module['info']['package']) ? $module['info']['package'] : $this->other;
+    if (!empty($module['info']['package']) && $module['info']['package'] === 'Core') {
+      $modules['type_status'] = $this->core;
+    }
+    else {
+      $param = array($this->custom, $this->contribNoUpgrade);
+      $data = $this->updateProcessFetchTask($module);
+      $modules['type_status'] = !empty($data['type']) ? $data['type'] : $this->custom;
+      $modules['package'] = !empty($module['info']['package']) ? $module['info']['package'] : $this->other;
+      if (!empty($data) && !empty($data['type']) && in_array($data['type'], $param, TRUE)) {
+        $filePath = substr($module['filename'], 0, strripos($module['filename'], '/'));
+        $recursiveDirectory = new \RecursivedirectoryIterator($filePath);
+        $recursiveIterator = new \RecursiveIteratorIterator($recursiveDirectory);
+        foreach ($recursiveIterator as $name => $object) {
+          $status = FALSE;
+          $ident = array('.info', '.txt', '/.', '/..', '.png', '.gif', '.jpeg');
+          foreach ($ident as $val) {
+            if (strpos($name, $val) !== FALSE) {
+              $status = TRUE;
+            }
+          }
+          if (!empty($status)) {
+            continue;
+          }
+          else {
+            $checkCode = $this->checkCode($name, $modules['name']);
+            $modules['lines'] += $checkCode['all_strings'];
+            $modules['files'][$name] = $checkCode;
+          }
+        }
+      }
+    }
+    $modules['version'] = !empty($module['info']['version']) ? $module['info']['version'] : '';
+    return $modules;
+  }
+
+  /**
    * Processes a task to fetch available update data for a single project.
    *
    * Once the release history XML data is downloaded, it is parsed and saved
@@ -252,50 +296,6 @@ class EvaluationCode {
       }
     }
     return !empty($functions) ? $functions : '';
-  }
-
-  /**
-   * Implements _upgrade_check_modules_evaluation().
-   */
-  public function modulesEvaluation($module) {
-    $modules = $modules['files'] = array();
-    $modules['lines'] = 0;
-    $modules['name'] = !empty($module['name']) ? $module['name'] : '';
-    $modules['schema_version'] = !empty($module['schema_version']) ? $module['schema_version'] : '';
-    $modules['package'] = !empty($module['info']['package']) ? $module['info']['package'] : $this->other;
-    if (!empty($module['info']['package']) && $module['info']['package'] === 'Core') {
-      $modules['type_status'] = $this->core;
-    }
-    else {
-      $param = array($this->custom, $this->contribNoUpgrade);
-      $data = $this->updateProcessFetchTask($module);
-      $modules['type_status'] = !empty($data['type']) ? $data['type'] : $this->custom;
-      $modules['package'] = !empty($module['info']['package']) ? $module['info']['package'] : $this->other;
-      if (!empty($data) && !empty($data['type']) && in_array($data['type'], $param, TRUE)) {
-        $filePath = substr($module['filename'], 0, strripos($module['filename'], '/'));
-        $recursiveDirectory = new \RecursivedirectoryIterator($filePath);
-        $recursiveIterator = new \RecursiveIteratorIterator($recursiveDirectory);
-        foreach ($recursiveIterator as $name => $object) {
-          $status = FALSE;
-          $ident = array('.info', '.txt', '/.', '/..', '.png', '.gif', '.jpeg');
-          foreach ($ident as $val) {
-            if (strpos($name, $val) !== FALSE) {
-              $status = TRUE;
-            }
-          }
-          if (!empty($status)) {
-            continue;
-          }
-          else {
-            $checkCode = $this->checkCode($name, $modules['name']);
-            $modules['lines'] += $checkCode['all_strings'];
-            $modules['files'][$name] = $checkCode;
-          }
-        }
-      }
-    }
-    $modules['version'] = !empty($module['info']['version']) ? $module['info']['version'] : '';
-    return $modules;
   }
   //if (function_exists('drupal_get_path')) {
 

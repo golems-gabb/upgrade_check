@@ -8,6 +8,8 @@ use Upgrade_check\EvaluationCode;
 
 class EvaluationImplementation {
 
+  private $moduleName = 'upgrade_check';
+
   /**
    * Implements upgrade_check_form().
    */
@@ -329,10 +331,12 @@ class EvaluationImplementation {
   private function upgradeCheckModulesData(&$operations) {
     $system = system_list('module_enabled');
     foreach ($system as $module) {
-      $operations[] = array(
-        '_upgrade_check_modules_evaluation',
-        array('module' => (array) $module),
-      );
+      if (!empty($module->name) && $module->name !== $this->moduleName) {
+        $operations[] = array(
+          '_upgrade_check_modules_evaluation',
+          array('module' => (array) $module),
+        );
+      }
     }
     return NULL;
   }
