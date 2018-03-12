@@ -5,7 +5,7 @@
  * This is module file for drupal 8 upgrade evaluation.
  */
 
-require_once DRUPAL_ROOT . '/' . drupal_get_path('module', 'upgrade_check') . '/includes/EvaluationImplementation.php';
+require_once drupal_get_path('module', 'upgrade_check') . '/includes/EvaluationImplementation.php';
 
 define('UPGRADE_CHECK_PATH', 'admin/config/upgrade-check');
 define('UPGRADE_CHECK_EVALUATION', UPGRADE_CHECK_PATH . '/evaluation');

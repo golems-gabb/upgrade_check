@@ -216,7 +216,8 @@ class EvaluationCode {
   private function parseXml($xml) {
     if (!isset($xml->error) && !empty($xml->data)) {
       module_load_include('inc', 'update', 'update.fetch');
-      $available = update_parse_xml($xml->data);
+      $parser = new \update_xml_parser;
+      $available = $parser->parse($xml->data);
     }
     return !empty($available) ? $available : array();
   }
@@ -355,7 +356,5 @@ class EvaluationCode {
     }
     return $datas;
   }
-
-  //if (function_exists('drupal_get_path')) {
 
 }
