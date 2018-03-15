@@ -141,6 +141,9 @@ class EvaluationImplementation {
     $data['menu_data'] = $evIm->upgradeCheckMenusData();
     $data['taxonomy_data'] = $evIm->upgradeCheckTaxonomyData();
     $data['views_data'] = $evIm->upgradeCheckViewsData();
+    if (module_exists('comment')) {
+      $data['comments'] = $evIm->upgradeCheckCommentData();
+    }
     $operations[] = array('_upgrade_check_create_json', array('data' => $data));
     $batch = array(
       'operations' => $operations,
@@ -221,7 +224,7 @@ class EvaluationImplementation {
         ++$result[$menuName];
       }
     }
-    return $result;
+    return $this->upgradeCheckCreateAssociatedArray($result, 'link_counts');
   }
 
   /**
@@ -236,7 +239,33 @@ class EvaluationImplementation {
     );
     $nodes = $this->generateSql($param);
     foreach ($nodes as $node) {
-      $result[$this->generateCryptName($node->type)] = $node->module;
+      $result[] = array(
+        'name' => $this->generateCryptName($node->type),
+        'module' => $node->module,
+      );
+    }
+    return $result;
+  }
+
+  /**
+   * Fetch comment data.
+   */
+  private function upgradeCheckCommentData() {
+    $result = array();
+    $param = array(
+      't' => 'comment',
+      'a' => 'c',
+      'f' => array('cid', 'pid'),
+    );
+    $comments = $this->generateSql($param);
+    foreach ($comments as $comment) {
+      $key = !empty($comment->pid) ? 'children_comments' : 'parent_comments';
+      if (empty($result[$key])) {
+        $result[$key] = 1;
+      }
+      else {
+        ++$result[$key];
+      }
     }
     return $result;
   }
@@ -288,7 +317,7 @@ class EvaluationImplementation {
         }
       }
     }
-    return $result;
+    return $this->upgradeCheckCreateAssociatedArray($result, 'term_counts');
   }
 
   /**
@@ -512,6 +541,21 @@ class EvaluationImplementation {
       $name = md5($name . $salt);
     }
     return $name;
+  }
+
+  /**
+   * Convert to associate array.
+   */
+  private static function upgradeCheckCreateAssociatedArray($datas, $key) {
+    if (!empty($datas)) {
+      foreach ($datas as $name => $data) {
+        if (!empty($data) && !empty($name)) {
+          $datas[] = array('name' => $name, $key => $data);
+          unset($datas[$name]);
+        }
+      }
+    }
+    return $datas;
   }
 
 }

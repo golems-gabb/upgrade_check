@@ -64,7 +64,8 @@ class EvaluationCode {
           else {
             $checkCode = $this->checkCode($name, $themes['name']);
             $themes['lines'] += $checkCode['all_strings'];
-            $themes['files'][$name] = $checkCode;
+            $checkCode['file_name'] = $name;
+            $themes['files'][] = $checkCode;
           }
         }
       }
@@ -111,7 +112,8 @@ class EvaluationCode {
           else {
             $checkCode = $this->checkCode($name, $modules['name']);
             $modules['lines'] += $checkCode['all_strings'];
-            $modules['files'][$name] = $checkCode;
+            $checkCode['file_name'] = $name;
+            $modules['files'][] = $checkCode;
           }
         }
       }
@@ -338,7 +340,7 @@ class EvaluationCode {
         }
       }
     }
-    return $modules;
+    return array_values($modules);
   }
 
   /**
@@ -349,13 +351,11 @@ class EvaluationCode {
       foreach ($datas as $key => $data) {
         if (!empty($data) && !empty($data['name'])) {
           $datas[$data['name']] = $data;
-          unset($datas[$data['name']]['name'], $datas[$key]);
+          unset($datas[$key]);
         }
       }
     }
     return $datas;
   }
-
-  //if (function_exists('drupal_get_path')) {
 
 }
