@@ -32,7 +32,7 @@ class EvaluationCode {
   public function themesEvaluation($theme) {
     $themes = $themes['files'] = array();
     $themes['lines'] = 0;
-    $themes['type'] = 'Enabled';
+    $themes['type'] = !empty($theme['status']) ? 'Enabled' : 'Disabled';
     $themes['name'] = !empty($theme['name']) ? $theme['name'] : '';
     $theme_path = drupal_get_path('theme', variable_get('theme_default', NULL));
     $default_theme = substr($theme_path, strrpos($theme_path, '/') + 1);
