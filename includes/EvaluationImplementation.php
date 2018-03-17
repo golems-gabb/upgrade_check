@@ -139,8 +139,12 @@ class EvaluationImplementation {
     $data['fields_data'] = $evIm->upgradeCheckFieldsData();
     $data['nodes_data'] = $evIm->upgradeCheckNodesData();
     $data['menu_data'] = $evIm->upgradeCheckMenusData();
-    $data['taxonomy_data'] = $evIm->upgradeCheckTaxonomyData();
-    $data['views_data'] = $evIm->upgradeCheckViewsData();
+    if (module_exists('taxonomy')) {
+      $data['taxonomy_data'] = $evIm->upgradeCheckTaxonomyData();
+    }
+    if (module_exists('views')) {
+      $data['views_data'] = $evIm->upgradeCheckViewsData();
+    }
     if (module_exists('comment')) {
       $data['comments'] = $evIm->upgradeCheckCommentData();
     }
@@ -189,13 +193,19 @@ class EvaluationImplementation {
   private function upgradeCheckEntityData(&$data) {
     $keys = array(
       'nodes_count' => array('node', 'nid', 'n'),
-      'existing_files_count' => array('file_usage', 'fid', 'f'),
       'users_count' => array('users', 'uid', 'u'),
       'image_styles_count' => array('image_styles', 'isid', 'i'),
       'roles_count' => array('users_roles', 'rid', 'u'),
-      'languages_count' => array('languages', 'language', 'l'),
-      'block_custom_count' => array('block_custom', 'bid', 'b'),
     );
+    if (module_exists('locale')) {
+      $keys['languages_count'] = array('languages', 'language', 'l');
+    }
+    if (module_exists('block')) {
+      $keys['block_custom_count'] = array('block_custom', 'bid', 'b');
+    }
+    if (module_exists('file')) {
+      $keys['existing_files_count'] = array('file_usage', 'fid', 'f');
+    }
     foreach ($keys as $key => $val) {
       $param = array('t' => $val[0], 'a' => $val[2], 'f' => array($val[1]));
       $result = $this->generateSql($param);
@@ -496,7 +506,7 @@ class EvaluationImplementation {
     $eC = new EvaluationCode;
     $response = array();
     $data['modules'] = $eC->upgradeCheckSubmodulesDeleteInfo($context['results']['modules']);
-    $data['themes'] = $eC->upgradeCheckConvertAssociateArray($context['results']['themes']);
+    $data['themes'] = $context['results']['themes'];
     $response['data'] = $data;
     $file_name = $response['data']['site_info']['site_name'] . '.' . 'json';
     $file_path = file_unmanaged_save_data(drupal_json_encode($response), $file_name, FILE_EXISTS_REPLACE);
