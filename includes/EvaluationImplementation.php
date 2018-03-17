@@ -259,11 +259,11 @@ class EvaluationImplementation {
     $param = array(
       't' => 'content_node_field',
       'a' => 'fci',
-      'f' => array('type', 'module'),
+      'f' => array('active', 'module', 'type'),
       'j' => array(
         't' => 'content_node_field_instance',
         'a' => 'fc',
-        'f' => array('widget_type', 'widget_module', 'widget_active'),
+        'f' => array('type_name'),
         'con' => array('left' => 'field_name', 'right' => 'field_name'),
         'jt' => 'left',
       ),
@@ -271,9 +271,11 @@ class EvaluationImplementation {
     $result = $this->generateSql($param);
     if (!empty($result)) {
       foreach ($result as $key => $value) {
-        if (!empty($value) && !empty($value->bundle)) {
-          $result[$key]->bundle = $this->generateCryptName($value->bundle);
+        if (!empty($value) && !empty($value->type_name)) {
+          $result[$key]->bundle = $this->generateCryptName($value->type_name);
+          unset($result[$key]->type_name);
         }
+        $result[$key]->entity_type = 'node';
       }
     }
     return $result;
@@ -379,7 +381,6 @@ class EvaluationImplementation {
       );
       $query = $this->generateSql($param, TRUE);
       while ($view = db_fetch_object($query)) {
-        $as = '';
         $param = array(
           't' => 'views_display',
           'a' => 'v',
@@ -601,14 +602,8 @@ class EvaluationImplementation {
       if (isset($lists['bootstrap'])) {
         return $lists['bootstrap'];
       }
-      if ($cached = cache_get('bootstrap_modules', 'cache_bootstrap')) {
-        $bootstrap_list = $cached->data;
-      }
-      else {
-        $query = db_query("SELECT name, filename FROM {system} WHERE status = 1 AND bootstrap = 1 AND type = 'module' ORDER BY weight ASC, name ASC");
-        $bootstrap_list = $this->dbFetchAllAssoc($query, 'name');
-        cache_set('bootstrap_modules', $bootstrap_list, 'cache_bootstrap');
-      }
+      $query = db_query("SELECT name, filename FROM {system} WHERE status = 1 AND bootstrap = 1 AND type = 'module' ORDER BY weight ASC, name ASC");
+      $bootstrap_list = $this->dbFetchAllAssoc($query, 'name');
       // To avoid a separate database lookup for the filepath, prime the
       // drupal_get_filename() static cache for bootstrap modules only.
       // The rest is stored separately to keep the bootstrap module cache small.
@@ -620,22 +615,19 @@ class EvaluationImplementation {
       $lists['bootstrap'] = array_keys($bootstrap_list);
     }
     elseif (!isset($lists['module_enabled'])) {
-      if ($cached = cache_get('system_list', 'cache_bootstrap')) {
-        $lists = $cached->data;
-      }
-      else {
-        $lists = array(
-          'module_enabled' => array(),
-          'theme' => array(),
-          'filepaths' => array(),
-        );
-        // The module name (rather than the filename) is used as the fallback
-        // weighting in order to guarantee consistent behavior across different
-        // Drupal installations, which might have modules installed in different
-        // locations in the file system. The ordering here must also be
-        // consistent with the one used in module_implements().
-        $result = db_query("SELECT * FROM {system} WHERE type = 'theme' OR (type = 'module' AND status = 1) ORDER BY weight ASC, name ASC");
-        foreach ($result as $record) {
+     $lists = array(
+        'module_enabled' => array(),
+        'theme' => array(),
+        'filepaths' => array(),
+      );
+      // The module name (rather than the filename) is used as the fallback
+      // weighting in order to guarantee consistent behavior across different
+      // Drupal installations, which might have modules installed in different
+      // locations in the file system. The ordering here must also be
+      // consistent with the one used in module_implements().
+      $query = db_query("SELECT * FROM {system} WHERE type = 'theme' OR (type = 'module' AND status = 1) ORDER BY weight ASC, name ASC");
+      while ($record = db_fetch_object($query)) {
+        if (!empty($record)) {
           $record->info = unserialize($record->info);
           // Build a list of all enabled modules.
           if ($record->type == 'module') {
@@ -654,35 +646,33 @@ class EvaluationImplementation {
             );
           }
         }
-        foreach ($lists['theme'] as $key => $theme) {
-          if (!empty($theme->info['base theme'])) {
-            // Make a list of the theme's base themes.
-            require_once dirname(__FILE__) . '/includes/theme.inc';
-            $lists['theme'][$key]->base_themes = $this->drupalFindBaseThemes($lists['theme'], $key);
-            // Don't proceed if there was a problem with the root base theme.
-            if (!current($lists['theme'][$key]->base_themes)) {
-              continue;
-            }
-            // Determine the root base theme.
-            $base_key = key($lists['theme'][$key]->base_themes);
-            // Add to the list of sub-themes for each of the theme's base themes.
-            foreach (array_keys($lists['theme'][$key]->base_themes) as $base_theme) {
-              $lists['theme'][$base_theme]->sub_themes[$key] = $lists['theme'][$key]->info['name'];
-            }
-            // Add the base theme's theme engine info.
-            $lists['theme'][$key]->info['engine'] = isset($lists['theme'][$base_key]->info['engine']) ? $lists['theme'][$base_key]->info['engine'] : 'theme';
+      }
+      foreach ($lists['theme'] as $key => $theme) {
+        if (!empty($theme->info['base theme'])) {
+          // Make a list of the theme's base themes.
+          $lists['theme'][$key]->base_themes = $this->drupalFindBaseThemes($lists['theme'], $key);
+          // Don't proceed if there was a problem with the root base theme.
+          if (!current($lists['theme'][$key]->base_themes)) {
+            continue;
           }
-          else {
-            // A plain theme is its own engine.
-            $base_key = $key;
-            if (!isset($lists['theme'][$key]->info['engine'])) {
-              $lists['theme'][$key]->info['engine'] = 'theme';
-            }
+          // Determine the root base theme.
+          $base_key = key($lists['theme'][$key]->base_themes);
+          // Add to the list of sub-themes for each of the theme's base themes.
+          foreach (array_keys($lists['theme'][$key]->base_themes) as $base_theme) {
+            $lists['theme'][$base_theme]->sub_themes[$key] = $lists['theme'][$key]->info['name'];
           }
-          // Set the theme engine prefix.
-          $lists['theme'][$key]->prefix = $lists['theme'][$key]->info['engine'] == 'theme' ? $base_key : $lists['theme'][$key]->info['engine'];
+          // Add the base theme's theme engine info.
+          $lists['theme'][$key]->info['engine'] = isset($lists['theme'][$base_key]->info['engine']) ? $lists['theme'][$base_key]->info['engine'] : 'theme';
         }
-        cache_set('system_list', $lists, 'cache_bootstrap');
+        else {
+          // A plain theme is its own engine.
+          $base_key = $key;
+          if (!isset($lists['theme'][$key]->info['engine'])) {
+            $lists['theme'][$key]->info['engine'] = 'theme';
+          }
+        }
+        // Set the theme engine prefix.
+        $lists['theme'][$key]->prefix = $lists['theme'][$key]->info['engine'] == 'theme' ? $base_key : $lists['theme'][$key]->info['engine'];
       }
       // To avoid a separate database lookup for the filepath, prime the
       // drupal_get_filename() static cache with all enabled modules and themes.

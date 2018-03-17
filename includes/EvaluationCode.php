@@ -6,7 +6,7 @@ class EvaluationCode {
 
   private $version = '8.x';
 
-  private $oldVersion = '7.x';
+  private $oldVersion = '6.x';
 
   private $core = 'core';
 
@@ -32,17 +32,15 @@ class EvaluationCode {
   public function themesEvaluation($theme) {
     $themes = $themes['files'] = array();
     $themes['lines'] = 0;
-    $themes['type'] = 'Enabled';
+    $themes['type'] = !empty($theme['status']) ? 'Enabled' : 'Disabled';
     $themes['name'] = !empty($theme['name']) ? $theme['name'] : '';
+    $themes['status'] = !empty($theme['status']) ? $theme['status'] : 0;
     $theme_path = drupal_get_path('theme', variable_get('theme_default', NULL));
     $default_theme = substr($theme_path, strrpos($theme_path, '/') + 1);
     if ($themes['name'] === $default_theme) {
       $themes['type'] = 'Default';
     }
-    if (!empty($theme['info']['package']) && $theme['info']['package'] === 'Core') {
-      $themes['type_status'] = $this->core;
-    }
-    else {
+    if (!empty($theme['status'])) {
       $param = array($this->custom, $this->contribNoUpgrade);
       $data = $this->updateProcessFetchTask($theme);
       $themes['type_status'] = !empty($data['type']) ? $data['type'] : $this->custom;
@@ -85,7 +83,8 @@ class EvaluationCode {
     $modules['schema_version'] = !empty($module['schema_version']) ? $module['schema_version'] : '';
     $modules['package'] = !empty($module['info']['package']) ? $module['info']['package'] : $this->other;
     $modules['parent_module'] = !empty($module['parent_module']) ? $module['parent_module'] : '';
-    if (!empty($module['info']['package']) && $module['info']['package'] === 'Core') {
+    $paramCore = array('Core', 'Core - required');
+    if (!empty($module['info']['package'])  && in_array($module['info']['package'], $paramCore, TRUE)) {
       $modules['type_status'] = $this->core;
     }
     else {
@@ -134,7 +133,7 @@ class EvaluationCode {
    */
   private function updateProcessFetchTask($data) {
     global $base_url;
-    $site_key = drupal_hmac_base64($base_url, drupal_get_private_key());
+    $site_key = md5($base_url . drupal_get_private_key());
     $data['info']['version'] = str_replace($this->oldVersion, $this->version, $data['info']['version']);
     $url = $this->updateBuildFetchUrl($data, $site_key);
     $xml = drupal_http_request($url);
@@ -217,7 +216,7 @@ class EvaluationCode {
     if (!isset($xml->error) && !empty($xml->data)) {
       module_load_include('inc', 'update', 'update.fetch');
       $parser = new \update_xml_parser;
-      $available = $parser->parse($xml->data);
+      $available = $parser->parse(array($xml->data));
     }
     return !empty($available) ? $available : array();
   }
