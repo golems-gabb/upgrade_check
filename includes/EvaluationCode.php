@@ -62,7 +62,8 @@ class EvaluationCode {
           else {
             $checkCode = $this->checkCode($name, $themes['name']);
             $themes['lines'] += $checkCode['all_strings'];
-            $themes['files'][$name] = $checkCode;
+            $checkCode['file_name'] = $name;
+            $themes['files'][] = $checkCode;
           }
         }
       }
@@ -83,8 +84,8 @@ class EvaluationCode {
     $modules['schema_version'] = !empty($module['schema_version']) ? $module['schema_version'] : '';
     $modules['package'] = !empty($module['info']['package']) ? $module['info']['package'] : $this->other;
     $modules['parent_module'] = !empty($module['parent_module']) ? $module['parent_module'] : '';
-    $paramCore = array('Core', 'Core - required');
-    if (!empty($module['info']['package'])  && in_array($module['info']['package'], $paramCore, TRUE)) {
+    $paramCore = array('Core', 'Core - required', 'Core - optional');
+    if (!empty($module['info']['package']) && in_array($module['info']['package'], $paramCore, TRUE)) {
       $modules['type_status'] = $this->core;
     }
     else {
@@ -110,7 +111,8 @@ class EvaluationCode {
           else {
             $checkCode = $this->checkCode($name, $modules['name']);
             $modules['lines'] += $checkCode['all_strings'];
-            $modules['files'][$name] = $checkCode;
+            $checkCode['file_name'] = $name;
+            $modules['files'][] = $checkCode;
           }
         }
       }
@@ -338,7 +340,7 @@ class EvaluationCode {
         }
       }
     }
-    return $modules;
+    return array_values($modules);
   }
 
   /**
@@ -349,7 +351,7 @@ class EvaluationCode {
       foreach ($datas as $key => $data) {
         if (!empty($data) && !empty($data['name'])) {
           $datas[$data['name']] = $data;
-          unset($datas[$data['name']]['name'], $datas[$key]);
+          unset($datas[$key]);
         }
       }
     }

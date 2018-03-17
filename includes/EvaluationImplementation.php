@@ -104,19 +104,14 @@ class EvaluationImplementation {
       '#options' => array('no' => t('No'), 'yes' => t('Yes')),
       '#default_value' => variable_get(UPGRADE_CHECK_REPLACE_ENTITY_NAME, 'no'),
     );
+    $hash = variable_get(UPGRADE_CHECK_SALT_FIELD_NAME, md5(uniqid(rand())));
     $form[UPGRADE_CHECK_SETTINGS_FORM][UPGRADE_CHECK_SALT_FIELD_NAME] = array(
       '#type' => 'textfield',
       '#title' => t('Default salt'),
       '#description' => t('Automatic salt generation to encrypt real entity names.'),
       '#disabled' => 'disabled',
-      '#default_value' => variable_get(UPGRADE_CHECK_SALT_FIELD_NAME, md5(uniqid(rand()))),
-      '#states' => array(
-        'visible' => array(
-          ':input[name="' . UPGRADE_CHECK_REPLACE_ENTITY_NAME . '"]' => array(
-            'value' => 'yes',
-          ),
-        ),
-      ),
+      '#default_value' => $hash,
+      '#value' => $hash,
     );
     return system_settings_form($form);
   }
@@ -139,8 +134,12 @@ class EvaluationImplementation {
     $data['fields_data'] = $evIm->upgradeCheckFieldsData();
     $data['nodes_data'] = $evIm->upgradeCheckNodesData();
     $data['menu_data'] = $evIm->upgradeCheckMenusData();
-    $data['taxonomy_data'] = $evIm->upgradeCheckTaxonomyData();
-    $data['views_data'] = $evIm->upgradeCheckViewsData();
+    if (module_exists('taxonomy')) {
+      $data['taxonomy_data'] = $evIm->upgradeCheckTaxonomyData();
+    }
+    if (module_exists('views')) {
+      $data['views_data'] = $evIm->upgradeCheckViewsData();
+    }
     if (module_exists('comment')) {
       $data['comments'] = $evIm->upgradeCheckCommentData();
     }
@@ -194,10 +193,17 @@ class EvaluationImplementation {
       'existing_files_count' => array('files', 'fid', 'f'),
       'users_count' => array('users', 'uid', 'u'),
       'roles_count' => array('role', 'rid', 'u'),
-      'block_custom_count' => array('blocks', 'bid', 'b', array(
-        array('f' => 'module', 'v' => 'block')),
-      )
     );
+    if (module_exists('block')) {
+      $keys['block_custom_count'] = array(
+        'blocks',
+        'bid',
+        'b',
+        array(
+          array('f' => 'module', 'v' => 'block'),
+        ),
+      );
+    }
     if (module_exists('locale')) {
       $keys['languages_count'] = array('languages', 'language', 'l');
     }
@@ -232,7 +238,7 @@ class EvaluationImplementation {
         ++$result[$menuName];
       }
     }
-    return $result;
+    return $this->upgradeCheckCreateAssociatedArray($result, 'link_counts');
   }
 
   /**
@@ -247,7 +253,10 @@ class EvaluationImplementation {
     );
     $nodes = $this->generateSql($param);
     foreach ($nodes as $node) {
-      $result[$this->generateCryptName($node->type)] = $node->module;
+      $result[] = array(
+        'name' => $this->generateCryptName($node->type),
+        'module' => $node->module,
+      );
     }
     return $result;
   }
@@ -301,7 +310,7 @@ class EvaluationImplementation {
         }
       }
     }
-    return $result;
+    return $this->upgradeCheckCreateAssociatedArray($result, 'term_counts');
   }
 
   /**
@@ -544,7 +553,7 @@ class EvaluationImplementation {
     $eC = new EvaluationCode;
     $response = array();
     $data['modules'] = $eC->upgradeCheckSubmodulesDeleteInfo($context['results']['modules']);
-    $data['themes'] = $eC->upgradeCheckConvertAssociateArray($context['results']['themes']);
+    $data['themes'] = $context['results']['themes'];
     $response['data'] = $data;
     $file_name = $response['data']['site_info']['site_name'] . '.' . 'json';
     $file_path = file_save_data(json_encode($response), $file_name, FILE_EXISTS_REPLACE);
@@ -615,7 +624,7 @@ class EvaluationImplementation {
       $lists['bootstrap'] = array_keys($bootstrap_list);
     }
     elseif (!isset($lists['module_enabled'])) {
-     $lists = array(
+      $lists = array(
         'module_enabled' => array(),
         'theme' => array(),
         'filepaths' => array(),
@@ -765,6 +774,21 @@ class EvaluationImplementation {
     }
     // If we get here, then this is our parent theme.
     return $current_base_theme;
+  }
+
+  /**
+   * Convert to associate array.
+   */
+  private static function upgradeCheckCreateAssociatedArray($datas, $key) {
+    if (!empty($datas)) {
+      foreach ($datas as $name => $data) {
+        if (!empty($data) && !empty($name)) {
+          $datas[] = array('name' => $name, $key => $data);
+          unset($datas[$name]);
+        }
+      }
+    }
+    return $datas;
   }
 
 }
