@@ -141,6 +141,9 @@ class EvaluationImplementation {
     $data['menu_data'] = $evIm->upgradeCheckMenusData();
     $data['taxonomy_data'] = $evIm->upgradeCheckTaxonomyData();
     $data['views_data'] = $evIm->upgradeCheckViewsData();
+    if (module_exists('comment')) {
+      $data['comments'] = $evIm->upgradeCheckCommentData();
+    }
     $operations[] = array('_upgrade_check_create_json', array('data' => $data));
     $batch = array(
       'operations' => $operations,
@@ -188,15 +191,21 @@ class EvaluationImplementation {
   private function upgradeCheckEntityData(&$data) {
     $keys = array(
       'nodes_count' => array('node', 'nid', 'n'),
-      'existing_files_count' => array('file_usage', 'fid', 'f'),///////////////////////
+      'existing_files_count' => array('files', 'fid', 'f'),
       'users_count' => array('users', 'uid', 'u'),
-      'image_styles_count' => array('image_styles', 'isid', 'i'),///////////////////////
-      'roles_count' => array('users_roles', 'rid', 'u'),
-      'languages_count' => array('languages', 'language', 'l'),//////////////////////
-      'block_custom_count' => array('block_custom', 'bid', 'b'),////////////////////
+      'roles_count' => array('role', 'rid', 'u'),
+      'block_custom_count' => array('blocks', 'bid', 'b', array(
+        array('f' => 'module', 'v' => 'block')),
+      )
     );
+    if (module_exists('locale')) {
+      $keys['languages_count'] = array('languages', 'language', 'l');
+    }
     foreach ($keys as $key => $val) {
       $param = array('t' => $val[0], 'a' => $val[2], 'f' => array($val[1]));
+      if (!empty($val[3])) {
+        $param['c'] = $val[3];
+      }
       $result = $this->generateSql($param);
       $data[$key] = count($result);
     }
@@ -248,14 +257,14 @@ class EvaluationImplementation {
    */
   private function upgradeCheckFieldsData() {
     $param = array(
-      't' => 'field_config_instance',/////////////////////////////
+      't' => 'content_node_field',
       'a' => 'fci',
-      'f' => array('entity_type', 'bundle'),
+      'f' => array('type', 'module'),
       'j' => array(
-        't' => 'field_config',
+        't' => 'content_node_field_instance',
         'a' => 'fc',
-        'f' => array('type', 'module', 'active'),
-        'con' => array('left' => 'field_id', 'right' => 'id'),
+        'f' => array('widget_type', 'widget_module', 'widget_active'),
+        'con' => array('left' => 'field_name', 'right' => 'field_name'),
         'jt' => 'left',
       ),
     );
@@ -299,13 +308,13 @@ class EvaluationImplementation {
   private function upgradeCheckTaxonomyVocabularyData() {
     $result = array();
     $param = array(
-      't' => 'taxonomy_vocabulary',////////////
+      't' => 'vocabulary',
       'a' => 't',
-      'f' => array('vid', 'machine_name'),
+      'f' => array('vid', 'name'),
     );
     $vocabularies = $this->generateSql($param);
     foreach ($vocabularies as $vocabulary) {
-      $result[$vocabulary->vid] = $vocabulary->machine_name;
+      $result[$vocabulary->vid] = $vocabulary->name;
     }
     return $result;
   }
@@ -316,7 +325,7 @@ class EvaluationImplementation {
   private function upgradeCheckTaxonomyTermsData() {
     $result = array();
     $param = array(
-      't' => 'taxonomy_term_data',////////////////
+      't' => 'term_data',
       'a' => 't',
       'f' => array('tid', 'vid'),
     );
@@ -347,8 +356,8 @@ class EvaluationImplementation {
    * Fetch data of all enabled themes.
    */
   private function upgradeCheckThemesData(&$operations) {
-    $themes = $this->systemList('theme');
-    foreach ($themes as $theme) {
+    $system = $this->systemList('theme');
+    foreach ($system as $theme) {
       $operations[] = array(
         '_upgrade_check_themes_evaluation',
         array('theme' => (array) $theme),
@@ -369,7 +378,8 @@ class EvaluationImplementation {
         'f' => array('vid', 'name', 'description'),
       );
       $query = $this->generateSql($param, TRUE);
-      foreach ($query as $view) {
+      while ($view = db_fetch_object($query)) {
+        $as = '';
         $param = array(
           't' => 'views_display',
           'a' => 'v',
@@ -385,6 +395,29 @@ class EvaluationImplementation {
       }
     }
     return $viewsdata;
+  }
+
+  /**
+   * Fetch comment data.
+   */
+  private function upgradeCheckCommentData() {
+    $result = array();
+    $param = array(
+      't' => 'comments',
+      'a' => 'c',
+      'f' => array('cid', 'pid'),
+    );
+    $comments = $this->generateSql($param);
+    foreach ($comments as $comment) {
+      $key = !empty($comment->pid) ? 'children_comments' : 'parent_comments';
+      if (empty($result[$key])) {
+        $result[$key] = 1;
+      }
+      else {
+        ++$result[$key];
+      }
+    }
+    return $result;
   }
 
   /**
@@ -410,7 +443,7 @@ class EvaluationImplementation {
           $joinSql = $join . ' JOIN {' . $data['j']['t'] . '} ' . $data['j']['a'] . ' ON ' . $sqlVal;
         }
         if (!empty($data['j']['f'])) {
-          foreach ($data['f'] as $valFC) {
+          foreach ($data['j']['f'] as $valFC) {
             $fields .= $ident . $data['j']['a'] . '.' . $valFC;
             $ident = ', ';
           }
@@ -483,7 +516,7 @@ class EvaluationImplementation {
           }
         }
         else {
-          $result = db_query($query);
+          return db_query($query);
         }
       }
     }
@@ -560,7 +593,7 @@ class EvaluationImplementation {
    * Backport of the DBTNG system_list() from Drupal 7.
    */
   private function systemList($type) {
-    $lists =& drupal_static(__FUNCTION__);
+    $lists =& $this->drupalStatic(__FUNCTION__);
     // For bootstrap modules, attempt to fetch the list from cache if possible.
     // if not fetch only the required information to fire bootstrap hooks
     // in case we are going to serve the page from cache.
@@ -672,6 +705,43 @@ class EvaluationImplementation {
       }
     }
     return $return;
+  }
+
+
+  /**
+   * Backport of the DBTNG drupal_static() from Drupal 7.
+   */
+  function &drupalStatic($name, $default_value = NULL, $reset = FALSE) {
+    static $data = array(), $default = array();
+    // First check if dealing with a previously defined static variable.
+    if (isset($data[$name]) || array_key_exists($name, $data)) {
+      // Non-NULL $name and both $data[$name] and $default[$name] statics exist.
+      if ($reset) {
+        // Reset pre-existing static variable to its default value.
+        $data[$name] = $default[$name];
+      }
+      return $data[$name];
+    }
+    // Neither $data[$name] nor $default[$name] static variables exist.
+    if (isset($name)) {
+      if ($reset) {
+        // Reset was called before a default is set and yet a variable must be
+        // returned.
+        return $data;
+      }
+      // First call with new non-NULL $name. Initialize a new static variable.
+      $default[$name] = $data[$name] = $default_value;
+      return $data[$name];
+    }
+    // Reset all: ($name == NULL). This needs to be done one at a time so that
+    // references returned by earlier invocations of drupal_static() also get
+    // reset.
+    foreach ($default as $name => $value) {
+      $data[$name] = $value;
+    }
+    // As the function returns a reference, the return should always be a
+    // variable.
+    return $data;
   }
 
   /**
