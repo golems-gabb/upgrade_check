@@ -1,0 +1,22 @@
+<?php
+
+/**
+ * @file
+ * Install file for the upgrade_check module.
+ */
+
+/**
+ * Implements hook_uninstall().
+ */
+function upgrade_check_uninstall() {
+  $variables = array(
+    'upgrade_check_json_file_path',
+    'upgrade_check_settings_form',
+    'upgrade_check_settings_form_enity_name',
+    'upgrade_check_test_enity_name',
+    'data_transfer_method',
+  );
+  foreach ($variables as $variable) {
+    variable_del($variable);
+  }
+}
