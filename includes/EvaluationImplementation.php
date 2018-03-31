@@ -509,7 +509,7 @@ class EvaluationImplementation {
     $data['themes'] = $context['results']['themes'];
     $response['data'] = $data;
     $file_name = $response['data']['site_info']['site_name'] . '.' . 'json';
-    $file_path = file_unmanaged_save_data(drupal_json_encode($response), $file_name, FILE_EXISTS_REPLACE);
+    $file_path = file_unmanaged_save_data(drupal_json_encode($response), 'public://' . $file_name, FILE_EXISTS_REPLACE);
     variable_set(UPGRADE_CHECK_JSON_PATH, $file_path);
     return FALSE;
   }
