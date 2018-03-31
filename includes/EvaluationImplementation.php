@@ -10,6 +10,8 @@ class EvaluationImplementation {
 
   private $moduleName = 'upgrade_check';
 
+  private $regType = '/\.(\w+)$/';
+
   /**
    * Implements upgrade_check_form().
    */
@@ -31,7 +33,6 @@ class EvaluationImplementation {
       '#description' => t('Depending on the method selected, the method for data transfer for analysis will be changed.'),
       '#options' => array(
         'manual' => t('Manual'),
-        'semiautomatic' => t('Semiautomatic'),
         'automatic' => t('Automatic'),
       ),
       '#disabled' => 'disabled',
@@ -137,6 +138,9 @@ class EvaluationImplementation {
     $evIm->upgradeCheckModulesData($operations);
     $evIm->upgradeCheckThemesData($operations);
     $data['fields_data'] = $evIm->upgradeCheckFieldsData();
+    if (module_exists('file')) {
+      $data['existing_files_count'] = $evIm->upgradeCheckFilesData();
+    }
     $data['nodes_data'] = $evIm->upgradeCheckNodesData();
     $data['menu_data'] = $evIm->upgradeCheckMenusData();
     if (module_exists('taxonomy')) {
@@ -202,9 +206,6 @@ class EvaluationImplementation {
     }
     if (module_exists('block')) {
       $keys['block_custom_count'] = array('block_custom', 'bid', 'b');
-    }
-    if (module_exists('file')) {
-      $keys['existing_files_count'] = array('file_usage', 'fid', 'f');
     }
     foreach ($keys as $key => $val) {
       $param = array('t' => $val[0], 'a' => $val[2], 'f' => array($val[1]));
@@ -308,6 +309,34 @@ class EvaluationImplementation {
   }
 
   /**
+   * Fetch files data.
+   */
+  private function upgradeCheckFilesData() {
+    $param = array(
+      't' => 'file_managed',
+      'a' => 'f',
+      'f' => array('filesize', 'uri'),
+    );
+    $sql = $this->generateSql($param);
+    if (!empty($sql)) {
+      foreach ($sql as $key => $value) {
+        $result[$key]['filesize'] = 0;
+        $result[$key]['type'] = 'undefined';
+        if (!empty($value) && !empty($value->filesize)) {
+          $result[$key]['filesize'] = $value->filesize;
+        }
+        if (!empty($value) && !empty($value->uri)) {
+          preg_match($this->regType, $value->uri, $type);
+          if (!empty($type) && !empty($type[1])) {
+            $result[$key]['type'] = $type[1];
+          }
+        }
+      }
+    }
+    return !empty($result) ? $result : array();
+  }
+
+  /**
    * Fetch taxonomy data.
    */
   private function upgradeCheckTaxonomyData() {
@@ -399,6 +428,14 @@ class EvaluationImplementation {
    */
   private function upgradeCheckViewsData() {
     $viewsdata = array();
+    $data_array = array(
+      'filters',
+      'sorts',
+      'fields',
+      'displays',
+      'relationships',
+      'arguments',
+    );
     if (module_exists('views')) {
       $param = array(
         't' => 'views_view',
@@ -406,19 +443,51 @@ class EvaluationImplementation {
         'f' => array('vid', 'name', 'description'),
       );
       $query = $this->generateSql($param, TRUE);
-      foreach ($query as $view) {
+      foreach ($query as $key => $view) {
         $param = array(
           't' => 'views_display',
           'a' => 'v',
-          'f' => array('id', 'display_title'),
+          'f' => array(
+            'id',
+            'display_title',
+            'display_options',
+            'display_plugin',
+          ),
           'c' => array(array('f' => 'vid', 'v' => $view->vid)),
         );
         $display_count = $this->generateSql($param);
-        array_push($viewsdata, array(
-          'view' => $this->generateCryptName($view->name),
-          'description' => $view->description,
-          'displays' => count($display_count),
-        ));
+        $viewsdata[$key]['view'] = $this->generateCryptName($view->name);
+        $viewsdata[$key]['description'] = $this->generateCryptName($view->description);
+        $viewsdata[$key]['count_displays'] = count($display_count);
+        foreach ($display_count as $key_d => $value) {
+          $viewsdata[$key]['displays'][$key_d]['style_plugin'] = '';
+          if (!empty($value) && !empty($value->display_options)) {
+            $data = unserialize($value->display_options);
+            $viewsdata[$key]['displays'][$key_d]['exposed_block'] = FALSE;
+            $viewsdata[$key]['displays'][$key_d]['cache'] = FALSE;
+            if (!empty($value->display_plugin)) {
+              $viewsdata[$key]['displays'][$key_d]['display_plugin'] = $value->display_plugin;
+            }
+            if (!empty($data)) {
+              foreach ($data as $name => $val) {
+                if (!empty($val) && in_array($name, $data_array, TRUE)) {
+                  $count_val = $name === 'displays' ? count(array_diff($val, array(0))) : count($val);
+                  $viewsdata[$key]['displays'][$key_d][$name] = $count_val;
+                }
+                elseif ($name === 'style_plugin' && !empty($val)) {
+                  $viewsdata[$key]['displays'][$key_d][$name] = $val;
+                }
+                elseif ($name === 'title' && !empty($val)) {
+                  $viewsdata[$key]['displays'][$key_d][$name] = $this->generateCryptName($val);
+                }
+                elseif (($name === 'cache' && !empty($val['type']) && $val['type'] !== 'none')
+                  || ($name === 'exposed_block' && !empty($val))) {
+                  $viewsdata[$key]['displays'][$key_d][$name] = TRUE;
+                }
+              }
+            }
+          }
+        }
       }
     }
     return $viewsdata;
@@ -509,7 +578,7 @@ class EvaluationImplementation {
     $data['themes'] = $context['results']['themes'];
     $response['data'] = $data;
     $file_name = $response['data']['site_info']['site_name'] . '.' . 'json';
-    $file_path = file_unmanaged_save_data(drupal_json_encode($response), $file_name, FILE_EXISTS_REPLACE);
+    $file_path = file_unmanaged_save_data(drupal_json_encode($response), 'public://' . $file_name, FILE_EXISTS_REPLACE);
     variable_set(UPGRADE_CHECK_JSON_PATH, $file_path);
     return FALSE;
   }
