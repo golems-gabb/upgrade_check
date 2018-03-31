@@ -10,6 +10,8 @@ class EvaluationImplementation {
 
   private $moduleName = 'upgrade_check';
 
+  private $regType = '/\.(\w+)$/';
+
   /**
    * Implements upgrade_check_form().
    */
@@ -137,6 +139,9 @@ class EvaluationImplementation {
     $evIm->upgradeCheckModulesData($operations);
     $evIm->upgradeCheckThemesData($operations);
     $data['fields_data'] = $evIm->upgradeCheckFieldsData();
+    if (module_exists('file')) {
+      $data['existing_files_count'] = $evIm->upgradeCheckFilesData();
+    }
     $data['nodes_data'] = $evIm->upgradeCheckNodesData();
     $data['menu_data'] = $evIm->upgradeCheckMenusData();
     if (module_exists('taxonomy')) {
@@ -202,9 +207,6 @@ class EvaluationImplementation {
     }
     if (module_exists('block')) {
       $keys['block_custom_count'] = array('block_custom', 'bid', 'b');
-    }
-    if (module_exists('file')) {
-      $keys['existing_files_count'] = array('file_usage', 'fid', 'f');
     }
     foreach ($keys as $key => $val) {
       $param = array('t' => $val[0], 'a' => $val[2], 'f' => array($val[1]));
@@ -305,6 +307,34 @@ class EvaluationImplementation {
       }
     }
     return $result;
+  }
+
+  /**
+   * Fetch files data.
+   */
+  private function upgradeCheckFilesData() {
+    $param = array(
+      't' => 'file_managed',
+      'a' => 'f',
+      'f' => array('filesize', 'uri'),
+    );
+    $sql = $this->generateSql($param);
+    if (!empty($sql)) {
+      foreach ($sql as $key => $value) {
+        $result[$key]['filesize'] = 0;
+        $result[$key]['type'] = 'undefined';
+        if (!empty($value) && !empty($value->filesize)) {
+          $result[$key]['filesize'] = $value->filesize;
+        }
+        if (!empty($value) && !empty($value->uri)) {
+          preg_match($this->regType, $value->uri, $type);
+          if (!empty($type) && !empty($type[1])) {
+            $result[$key]['type'] = $type[1];
+          }
+        }
+      }
+    }
+    return !empty($result) ? $result : array();
   }
 
   /**
@@ -431,6 +461,7 @@ class EvaluationImplementation {
         $viewsdata[$key]['description'] = $this->generateCryptName($view->description);
         $viewsdata[$key]['count_displays'] = count($display_count);
         foreach ($display_count as $key_d => $value) {
+          $viewsdata[$key]['displays'][$key_d]['style_plugin'] = '';
           if (!empty($value) && !empty($value->display_options)) {
             $data = unserialize($value->display_options);
             $viewsdata[$key]['displays'][$key_d]['exposed_block'] = FALSE;
