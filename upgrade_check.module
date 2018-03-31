@@ -50,7 +50,7 @@ function upgrade_check_menu() {
     'page callback' => 'drupal_get_form',
     'page arguments' => array('_upgrade_check_json_form'),
     'access arguments' => array(UPGRADE_CHECK_ACCESS),
-    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'type' => MENU_CALLBACK,
   );
   return $items;
 }

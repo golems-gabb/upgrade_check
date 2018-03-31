@@ -382,6 +382,15 @@ class EvaluationImplementation {
    */
   private function upgradeCheckViewsData() {
     $viewsdata = array();
+    $key = 1;
+    $data_array = array(
+      'filters',
+      'sorts',
+      'fields',
+      'displays',
+      'relationships',
+      'arguments',
+    );
     if (module_exists('views')) {
       $param = array(
         't' => 'views_view',
@@ -393,15 +402,48 @@ class EvaluationImplementation {
         $param = array(
           't' => 'views_display',
           'a' => 'v',
-          'f' => array('id', 'display_title'),
+          'f' => array(
+            'id',
+            'display_title',
+            'display_options',
+            'display_plugin',
+          ),
           'c' => array(array('f' => 'vid', 'v' => $view->vid)),
         );
         $display_count = $this->generateSql($param);
-        array_push($viewsdata, array(
-          'view' => $this->generateCryptName($view->name),
-          'description' => $view->description,
-          'displays' => count($display_count),
-        ));
+        $viewsdata[$key]['view'] = $this->generateCryptName($view->name);
+        $viewsdata[$key]['description'] = $this->generateCryptName($view->description);
+        $viewsdata[$key]['count_displays'] = count($display_count);
+        foreach ($display_count as $key_d => $value) {
+          $viewsdata[$key]['displays'][$key_d]['style_plugin'] = '';
+          if (!empty($value) && !empty($value->display_options)) {
+            $data = unserialize($value->display_options);
+            $viewsdata[$key]['displays'][$key_d]['exposed_block'] = FALSE;
+            $viewsdata[$key]['displays'][$key_d]['cache'] = FALSE;
+            if (!empty($value->display_plugin)) {
+              $viewsdata[$key]['displays'][$key_d]['display_plugin'] = $value->display_plugin;
+            }
+            if (!empty($data)) {
+              foreach ($data as $name => $val) {
+                if (!empty($val) && in_array($name, $data_array, TRUE)) {
+                  $count_val = $name === 'displays' ? count(array_diff($val, array(0))) : count($val);
+                  $viewsdata[$key]['displays'][$key_d][$name] = $count_val;
+                }
+                elseif ($name === 'style_plugin' && !empty($val)) {
+                  $viewsdata[$key]['displays'][$key_d][$name] = $val;
+                }
+                elseif ($name === 'title' && !empty($val)) {
+                  $viewsdata[$key]['displays'][$key_d][$name] = $this->generateCryptName($val);
+                }
+                elseif (($name === 'cache' && !empty($val['type']) && $val['type'] !== 'none')
+                  || ($name === 'exposed_block' && !empty($val))) {
+                  $viewsdata[$key]['displays'][$key_d][$name] = TRUE;
+                }
+              }
+            }
+          }
+        }
+        $key++;
       }
     }
     return $viewsdata;
