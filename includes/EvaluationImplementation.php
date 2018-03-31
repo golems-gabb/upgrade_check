@@ -10,6 +10,8 @@ class EvaluationImplementation {
 
   private $moduleName = 'upgrade_check';
 
+  private $regType = '/\.(\w+)$/';
+
   /**
    * Implements upgrade_check_form().
    */
@@ -134,6 +136,9 @@ class EvaluationImplementation {
     $data['fields_data'] = $evIm->upgradeCheckFieldsData();
     $data['nodes_data'] = $evIm->upgradeCheckNodesData();
     $data['menu_data'] = $evIm->upgradeCheckMenusData();
+    if (module_exists('filefield')) {
+      $data['existing_files_count'] = $evIm->upgradeCheckFilesData();
+    }
     if (module_exists('taxonomy')) {
       $data['taxonomy_data'] = $evIm->upgradeCheckTaxonomyData();
     }
@@ -190,7 +195,6 @@ class EvaluationImplementation {
   private function upgradeCheckEntityData(&$data) {
     $keys = array(
       'nodes_count' => array('node', 'nid', 'n'),
-      'existing_files_count' => array('files', 'fid', 'f'),
       'users_count' => array('users', 'uid', 'u'),
       'roles_count' => array('role', 'rid', 'u'),
     );
@@ -288,6 +292,34 @@ class EvaluationImplementation {
       }
     }
     return $result;
+  }
+
+  /**
+   * Fetch files data.
+   */
+  private function upgradeCheckFilesData() {
+    $param = array(
+      't' => 'files',
+      'a' => 'f',
+      'f' => array('filesize', 'filepath'),
+    );
+    $sql = $this->generateSql($param);
+    if (!empty($sql)) {
+      foreach ($sql as $key => $value) {
+        $result[$key]['filesize'] = 0;
+        $result[$key]['type'] = 'undefined';
+        if (!empty($value) && !empty($value->filesize)) {
+          $result[$key]['filesize'] = $value->filesize;
+        }
+        if (!empty($value) && !empty($value->filepath)) {
+          preg_match($this->regType, $value->filepath, $type);
+          if (!empty($type) && !empty($type[1])) {
+            $result[$key]['type'] = $type[1];
+          }
+        }
+      }
+    }
+    return !empty($result) ? $result : array();
   }
 
   /**
