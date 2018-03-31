@@ -84,6 +84,7 @@ class EvaluationCode {
     $modules['schema_version'] = !empty($module['schema_version']) ? $module['schema_version'] : '';
     $modules['package'] = !empty($module['info']['package']) ? $module['info']['package'] : $this->other;
     $modules['parent_module'] = !empty($module['parent_module']) ? $module['parent_module'] : '';
+    $modules['type_module'] = !empty($module['type_module']) ? $module['type_module'] : '';
     $paramCore = array('Core', 'Core - required', 'Core - optional');
     if (!empty($module['info']['package']) && in_array($module['info']['package'], $paramCore, TRUE)) {
       $modules['type_status'] = $this->core;
@@ -307,12 +308,16 @@ class EvaluationCode {
   public static function upgradeCheckSubmodules($modules) {
     if (!empty($modules)) {
       foreach ($modules as $key => $module) {
+        $modules[$key]->type_module = 'module';
         if (!empty($module) && !empty($module->info['dependencies'])) {
           foreach ($module->info['dependencies'] as $dependencies) {
             if (!empty($dependencies) && !empty($modules[$dependencies])) {
               $regSubmodules = '/\/modules\/' . $dependencies . '\/\w+/';
               if (!empty($module->filename) && preg_match($regSubmodules, $module->filename)) {
                 $modules[$key]->parent_module = $dependencies;
+              }
+              elseif (!empty($module->info['features'])) {
+                $modules[$key]->type_module = 'feature';
               }
             }
           }

@@ -33,7 +33,6 @@ class EvaluationImplementation {
       '#description' => t('Depending on the method selected, the method for data transfer for analysis will be changed.'),
       '#options' => array(
         'manual' => t('Manual'),
-        'semiautomatic' => t('Semiautomatic'),
         'automatic' => t('Automatic'),
       ),
       '#disabled' => 'disabled',
