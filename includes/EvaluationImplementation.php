@@ -12,6 +12,30 @@ class EvaluationImplementation {
 
   private $regType = '/\.(\w+)$/';
 
+  const REG_NAME = '/^\w+/';
+
+  const PASSWORD_LENGTH = 15;
+
+  const METHOD = 'aes128';
+
+  const KEY = '/%B3#P@j8QdFTsd*g&V~x';
+
+  const IV = '@97#3kUpKg#&3e4f';
+
+  const UPGRADE_CHECK_ACCESS_NAME = 'upgrade_check_access_name';
+
+  const UPGRADE_CHECK_RESULT_FORM = 'upgrade_check_result_form';
+
+  const UPGRADE_CHECK_METATAG_NAME = 'upgrade_check_tag';
+
+  const UPGRADE_CHECK_SALT_FIELD_NAME = 'upgrade_check_test_enity_name';
+
+  const UPGRADE_CHECK_JSON_PATH = 'upgrade_check_json_file_path';
+
+  const UPGRADE_CHECK_PREFIX = 'upgrade_check_';
+
+  const UPGRADE_CHECK_DATA_METHOD = 'data_transfer_method';
+
   /**
    * Implements upgrade_check_form().
    */
@@ -27,7 +51,8 @@ class EvaluationImplementation {
       '#type' => 'item',
       '#markup' => t('!text', array('!text' => $text)),
     );
-    $form['analyze'][UPGRADE_CHECK_DATA_METHOD] = array(
+    $method = variable_get(self::UPGRADE_CHECK_PREFIX . self::UPGRADE_CHECK_DATA_METHOD, 'manual');
+    $form['analyze'][self::UPGRADE_CHECK_DATA_METHOD] = array(
       '#type' => 'radios',
       '#title' => t('Data transfer method'),
       '#description' => t('Depending on the method selected, the method for data transfer for analysis will be changed.'),
@@ -36,11 +61,11 @@ class EvaluationImplementation {
         'automatic' => t('Automatic'),
       ),
       '#disabled' => 'disabled',
-      '#default_value' => variable_get(UPGRADE_CHECK_DATA_METHOD, 'manual'),
+      '#default_value' => !empty($method) ? $method : variable_get(self::UPGRADE_CHECK_DATA_METHOD, 'manual'),
     );
     $form['submit'] = array(
       '#type' => 'submit',
-      '#value' => 'Analyze',
+      '#value' => t('Analyze'),
     );
     return $form;
   }
@@ -50,42 +75,57 @@ class EvaluationImplementation {
    */
   public static function upgradeCheckJsonForm() {
     $form = array();
-    if (file_exists(variable_get(UPGRADE_CHECK_JSON_PATH))) {
-      $form['download'] = array(
-        '#type' => 'fieldset',
-        '#title' => t('Download JSON file'),
-      );
-      $options = array(
-        'absolute' => TRUE,
-        'html' => TRUE,
-        'attributes' => array('target' => '_blank'),
-      );
-      $link = l('Upload Json', UPGRADE_CHECK_URL, $options);
-      $form['download']['description'] = array(
-        '#type' => 'item',
-        '#markup' => t('Please follow the steps to complete migration check process:'),
-      );
-      $form['download']['description_list_one'] = array(
-        '#type' => 'item',
-        '#markup' => t('I - Download Json File from the given below link.'),
-      );
-      $form['download']['description_list_two'] = array(
-        '#type' => 'item',
-        '#markup' => t('II - Upload the json file here --> !link',
-          array(
-            '!link' => $link,
-          )
-        ),
-      );
+    if (file_exists(variable_get(self::UPGRADE_CHECK_JSON_PATH, NULL))) {
+      $method = variable_get(self::UPGRADE_CHECK_PREFIX . self::UPGRADE_CHECK_DATA_METHOD, 'manual');
+      if (!empty($method) && $method !== 'automatic') {
+        $form['download'] = array(
+          '#type' => 'fieldset',
+          '#title' => t('Download JSON file'),
+        );
+        $options = array(
+          'absolute' => TRUE,
+          'html' => TRUE,
+          'attributes' => array('target' => '_blank'),
+        );
+        $link = l('Upload Json', UPGRADE_CHECK_URL, $options);
+        $form['download']['description'] = array(
+          '#type' => 'item',
+          '#markup' => t('Please follow the steps to complete migration check process:'),
+        );
+        $form['download']['description_list_one'] = array(
+          '#type' => 'item',
+          '#markup' => t('I - Download Json File from the given below link.'),
+        );
+        $form['download']['description_list_two'] = array(
+          '#type' => 'item',
+          '#markup' => t('II - Upload the json file here --> !link',
+            array(
+              '!link' => $link,
+            )
+          ),
+        );
+        $textButton = 'Download JSON';
+      }
+      else {
+        $textButton = 'Transfer data';
+        $form['download'] = array(
+          '#type' => 'fieldset',
+          '#title' => t('Transfer JSON data'),
+        );
+        $form['download']['description'] = array(
+          '#type' => 'item',
+          '#value' => t('Please click to button "Transfer data" that complete migration check process. Data will be sent automatically.'),
+        );
+      }
       $form['submit'] = array(
         '#type' => 'submit',
-        '#value' => 'Download JSON',
+        '#value' => t($textButton),
       );
     }
     else {
       $text = 'Their is no json file to download. ';
       $text .= 'Please create one by clicking the below link!';
-      drupal_set_message(t('!text', array('!text' => $text)));
+      drupal_set_message(t($text));
       drupal_goto(UPGRADE_CHECK_EVALUATION);
     }
     return $form;
@@ -105,12 +145,13 @@ class EvaluationImplementation {
       '#options' => array('no' => t('No'), 'yes' => t('Yes')),
       '#default_value' => variable_get(UPGRADE_CHECK_REPLACE_ENTITY_NAME, 'no'),
     );
-    $form[UPGRADE_CHECK_SETTINGS_FORM][UPGRADE_CHECK_SALT_FIELD_NAME] = array(
+    $hash = variable_get(self::UPGRADE_CHECK_SALT_FIELD_NAME, md5(uniqid(rand())));
+    $form[UPGRADE_CHECK_SETTINGS_FORM][self::UPGRADE_CHECK_SALT_FIELD_NAME] = array(
       '#type' => 'textfield',
       '#title' => t('Default salt'),
       '#description' => t('Automatic salt generation to encrypt real entity names.'),
       '#disabled' => 'disabled',
-      '#default_value' => variable_get(UPGRADE_CHECK_SALT_FIELD_NAME, md5(uniqid(rand()))),
+      '#default_value' => $hash,
       '#states' => array(
         'visible' => array(
           ':input[name="' . UPGRADE_CHECK_REPLACE_ENTITY_NAME . '"]' => array(
@@ -123,11 +164,56 @@ class EvaluationImplementation {
   }
 
   /**
+   * Implements _upgrade_check_result_form().
+   */
+  public static function upgradeCheckResultForm() {
+    $data = self::upgradeCheckCryptUserData(NULL, $param = 'decrypt');
+    if (!empty($data)) {
+      $form[self::UPGRADE_CHECK_RESULT_FORM] = array(
+        '#type' => 'fieldset',
+        '#title' => t('User settings'),
+      );
+      $form[self::UPGRADE_CHECK_RESULT_FORM]['description'] = array(
+        '#type' => 'item',
+        '#value' => t('Use this data to authorize here - !link',
+          array(
+            '!link' => l(UPGRADE_CHECK_URL, UPGRADE_CHECK_URL),
+          )
+        ),
+      );
+      $form[self::UPGRADE_CHECK_RESULT_FORM]['name'] = array(
+        '#type' => 'textfield',
+        '#title' => t('Username'),
+        '#description' => t('Username.'),
+        '#disabled' => 'disabled',
+        '#default_value' => $data['name'],
+      );
+      $form[self::UPGRADE_CHECK_RESULT_FORM]['pass'] = array(
+        '#type' => 'textfield',
+        '#title' => t('Password'),
+        '#description' => t('Password.'),
+        '#disabled' => 'disabled',
+        '#default_value' => $data['pass'],
+      );
+    }
+    else {
+      $form[self::UPGRADE_CHECK_RESULT_FORM] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Missing data for authorization.'),
+      );
+    }
+    return $form;
+  }
+
+  /**
    * Implements upgrade_check_form_submit().
    */
-  public static function upgradeCheckFormSubmit() {
+  public static function upgradeCheckFormSubmit($form_state) {
     global $base_url;
     $data = $operations = array();
+    if (!empty($form_state['values']['data_transfer_method'])) {
+      variable_set(self::UPGRADE_CHECK_PREFIX . self::UPGRADE_CHECK_DATA_METHOD, $form_state['values']['data_transfer_method']);
+    }
     $evIm = new EvaluationImplementation;
     $data['site_info'] = array(
       'site_name' => $evIm->generateCryptName(variable_get('site_name', 'Drupal')),
@@ -579,7 +665,7 @@ class EvaluationImplementation {
     $response['data'] = $data;
     $file_name = $response['data']['site_info']['site_name'] . '.' . 'json';
     $file_path = file_unmanaged_save_data(drupal_json_encode($response), 'public://' . $file_name, FILE_EXISTS_REPLACE);
-    variable_set(UPGRADE_CHECK_JSON_PATH, $file_path);
+    variable_set(self::UPGRADE_CHECK_JSON_PATH, $file_path);
     return FALSE;
   }
 
@@ -587,8 +673,61 @@ class EvaluationImplementation {
    * Implements _upgrade_check_json_form_submit().
    */
   public static function upgradeCheckJsonFormSubmit() {
+    $method = variable_get(self::UPGRADE_CHECK_PREFIX . self::UPGRADE_CHECK_DATA_METHOD, 'manual');
+    if (!empty($method) && $method === 'automatic') {
+      return self::upgradeCheckJsonFormSubmitAutomatic();
+    }
+    return self::upgradeCheckJsonFormSubmitManualy();
+  }
+
+  /**
+   * Implements upgradeCheckJsonFormSubmitAutomatic().
+   */
+  private static function upgradeCheckJsonFormSubmitAutomatic() {
+    global $base_url;
+    $filePath = variable_get(self::UPGRADE_CHECK_JSON_PATH);
+    $file = file_get_contents($filePath);
+    if (!empty($file)) {
+      global $user;
+      $password = user_password(self::PASSWORD_LENGTH);
+      if (!empty($user->mail) && !empty($password)) {
+        $name = self::UPGRADE_CHECK_PREFIX . self::UPGRADE_CHECK_METATAG_NAME;
+        $meta = variable_get($name);
+        if (empty($meta)) {
+          $meta = self::generateCryptMetatag();
+          variable_set($name, $meta);
+        }
+        preg_match(self::REG_NAME, $user->mail, $name);
+        $data = array(
+          'name' => $name[0],
+          'mail' => $user->mail,
+          'pass' => $password,
+          'url' => $base_url,
+          'metatag' => $meta,
+          'data' => $file,
+        );
+        $result = self::upgradeCheckCheckResultRest(self::upgradeCheckCurl($data));
+        if (!empty($result)) {
+          $string = array('name' => $name[0], 'pass' => $password);
+          $result = self::upgradeCheckCryptUserData($string);
+          if (!empty($result)) {
+            file_unmanaged_delete(variable_get(self::UPGRADE_CHECK_JSON_PATH));
+            variable_del(self::UPGRADE_CHECK_JSON_PATH);
+            drupal_set_message(t('The data is successfully sent.'));
+            drupal_goto(UPGRADE_CHECK_RESULT);
+          }
+        }
+      }
+    }
+    return FALSE;
+  }
+
+  /**
+   * Implements upgradeCheckJsonFormSubmitManualy().
+   */
+  private static function upgradeCheckJsonFormSubmitManualy() {
     $siteName = variable_get('site_name', 'Drupal');
-    $filePath = variable_get(UPGRADE_CHECK_JSON_PATH);
+    $filePath = variable_get(self::UPGRADE_CHECK_JSON_PATH);
     $file = fopen($filePath, 'r') or die('Please give suitable Permission to files folder');
     $fileSize = filesize($filePath);
     header('Content-type: application/json');
@@ -604,19 +743,129 @@ class EvaluationImplementation {
       flush();
     }
     fclose($file);
-    file_unmanaged_delete(variable_get(UPGRADE_CHECK_JSON_PATH));
-    variable_del(UPGRADE_CHECK_JSON_PATH);
+    file_unmanaged_delete(variable_get(self::UPGRADE_CHECK_JSON_PATH));
+    variable_del(self::UPGRADE_CHECK_JSON_PATH);
     drupal_exit();
     return FALSE;
   }
 
   /**
-   * Crying values.
+   * Implements upgradeCheckAddMetatag().
+   */
+  public static function upgradeCheckAddMetatag(&$vars) {
+    $method = variable_get(self::UPGRADE_CHECK_PREFIX . self::UPGRADE_CHECK_DATA_METHOD, 'manual');
+    if (!empty($method) && $method === 'automatic') {
+      $name = self::UPGRADE_CHECK_PREFIX . self::UPGRADE_CHECK_METATAG_NAME;
+      $data = variable_get($name, NULL);
+      if (empty($data)) {
+        $data = self::generateCryptMetatag();
+        variable_set($name, $data);
+      }
+      $name = str_replace('_', '-', self::UPGRADE_CHECK_METATAG_NAME);
+      $metatag_description = array(
+        '#type' => 'html_tag',
+        '#tag' => 'meta',
+        '#attributes' => array(
+          'name' => $name,
+          'content' => $data,
+        ),
+      );
+      drupal_add_html_head($metatag_description, $name);
+    }
+    return FALSE;
+  }
+
+  /**
+   * Implements upgradeCheckCheckResultRest().
+   */
+  private static function upgradeCheckCheckResultRest($data = NULL) {
+    if (!empty($data)) {
+      $result = array(TRUE, 'ok', 'update', 'resave');
+      $data = json_decode($data, TRUE);
+      if (!empty($data) && !empty($data['result'])) {
+        if (in_array($data['result'], $result, TRUE)) {
+          return TRUE;
+        }
+      }
+    }
+    drupal_set_message(t('Data not saved. An error occurred.'), 'error');
+    return FALSE;
+  }
+
+  /**
+   * Implements upgradeCheckCryptUserData().
+   */
+  private static function upgradeCheckCryptUserData($data = NULL, $param = 'encrypt') {
+    $key = base64_encode(self::KEY);
+    $iv = self::IV;
+    if (!empty($data) && $param === 'encrypt') {
+      $string = serialize($data);
+      if (function_exists('openssl_encrypt')) {
+        $dataUser = openssl_encrypt($string, self::METHOD, $key, 0, $iv);
+      }
+      else {
+        $dataUser = base64_encode($string);
+      }
+      if (!empty($dataUser)) {
+        variable_set(self::UPGRADE_CHECK_ACCESS_NAME, $dataUser);
+        return TRUE;
+      }
+    }
+    elseif (empty($data) && $param === 'decrypt') {
+      $data = variable_get(self::UPGRADE_CHECK_ACCESS_NAME);
+      if (!empty($data)) {
+        if (function_exists('openssl_decrypt')) {
+          $dataUser = openssl_decrypt($data, self::METHOD, $key, 0, $iv);
+        }
+        else {
+          $dataUser = base64_decode($data);
+        }
+        return !empty($dataUser) ? unserialize($dataUser) : FALSE;
+      }
+    }
+    return FALSE;
+  }
+
+  /**
+   * Curl request.
+   *
+   * @param array $data
+   */
+  private static function upgradeCheckCurl($data) {
+    $headers = array();
+    $curl = curl_init();
+    curl_setopt($curl, CURLOPT_URL, UPGRADE_CHECK_URL);
+    curl_setopt($curl, CURLOPT_VERBOSE, TRUE);
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, TRUE);
+    curl_setopt($curl, CURLOPT_TIMEOUT, 20);
+    curl_setopt($curl, CURLOPT_POST, TRUE);
+    curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($data));
+    $headers[] = 'Content-Type: application/hal+json';
+    curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
+    $result = curl_exec($curl);
+    if (empty($result)) {
+      return NULL;
+    }
+    curl_close($curl);
+    return $result;
+  }
+
+  /**
+   * Crypting value metatag.
+   */
+  private static function generateCryptMetatag() {
+    $salt = variable_get(self::UPGRADE_CHECK_SALT_FIELD_NAME, self::KEY);
+    $data = md5(drupal_random_key() . $salt);
+    return $data;
+  }
+
+  /**
+   * Crypting values.
    */
   private function generateCryptName($name) {
     $crypt = variable_get(UPGRADE_CHECK_REPLACE_ENTITY_NAME, 'no');
     if (!empty($crypt) && $crypt === 'yes') {
-      $salt = variable_get(UPGRADE_CHECK_SALT_FIELD_NAME, '');
+      $salt = variable_get(self::UPGRADE_CHECK_SALT_FIELD_NAME, '');
       $name = md5($name . $salt);
     }
     return $name;

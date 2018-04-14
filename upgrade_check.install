@@ -15,6 +15,9 @@ function upgrade_check_uninstall() {
     'upgrade_check_settings_form_enity_name',
     'upgrade_check_test_enity_name',
     'data_transfer_method',
+    'upgrade_check_data_transfer_method',
+    'upgrade_check_upgrade_check_tag',
+    'upgrade_check_access_name',
   );
   foreach ($variables as $variable) {
     variable_del($variable);
