@@ -12,6 +12,10 @@ class EvaluationImplementation {
 
   private $regType = '/\.(\w+)$/';
 
+  const REG_NAME = '/^\w+/';
+
+  const PASSWORD_LENGTH = 15;
+
   const METHOD = 'aes128';
 
   const KEY = 'k%B3#W@j8ddFTsd*F&V2x';
@@ -729,13 +733,13 @@ class EvaluationImplementation {
   /**
    * Implements upgradeCheckJsonFormSubmitAutomatic().
    */
-  public static function upgradeCheckJsonFormSubmitAutomatic() {
+  private static function upgradeCheckJsonFormSubmitAutomatic() {
     global $base_url;
     $filePath = variable_get(self::UPGRADE_CHECK_JSON_PATH, NULL);
     $file = file_get_contents($filePath);
     if (!empty($file)) {
       global $user;
-      $password = user_password(15);
+      $password = user_password(self::PASSWORD_LENGTH);
       if (!empty($user->mail) && !empty($password)) {
         $name = self::UPGRADE_CHECK_PREFIX . self::UPGRADE_CHECK_METATAG_NAME;
         $meta = variable_get($name, NULL);
@@ -743,7 +747,7 @@ class EvaluationImplementation {
           $meta = self::generateCryptMetatag();
           variable_set($name, $meta);
         }
-        preg_match('/^\w+/', $user->mail, $name);
+        preg_match(self::REG_NAME, $user->mail, $name);
         $data = array(
           'name' => $name[0],
           'mail' => $user->mail,
@@ -752,7 +756,7 @@ class EvaluationImplementation {
           'metatag' => $meta,
           'data' => $file,
         );
-        $result = self::upgradeCheckCurl($data);
+        $result = self::upgradeCheckCheckResultRest(self::upgradeCheckCurl($data));
         if (!empty($result)) {
           $string = array('name' => $name[0], 'pass' => $password);
           $result = self::upgradeCheckCryptUserData($string);
@@ -765,12 +769,13 @@ class EvaluationImplementation {
         }
       }
     }
+    return FALSE;
   }
 
   /**
    * Implements upgradeCheckJsonFormSubmitManualy().
    */
-  public static function upgradeCheckJsonFormSubmitManualy() {
+  private static function upgradeCheckJsonFormSubmitManualy() {
     $siteName = variable_get('site_name', 'Drupal');
     $filePath = variable_get(self::UPGRADE_CHECK_JSON_PATH, NULL);
     $file = fopen($filePath, 'r') or die('Please give suitable Permission to files folder');
@@ -813,9 +818,26 @@ class EvaluationImplementation {
   }
 
   /**
+   * Implements upgradeCheckCheckResultRest().
+   */
+  private static function upgradeCheckCheckResultRest($data = NULL) {
+    if (!empty($data)) {
+      $result = array(TRUE, 'ok', 'update', 'resave');
+      $data = json_decode($data, TRUE);
+      if (!empty($data) && !empty($data['result'])) {
+        if (in_array($data['result'], $result, TRUE)) {
+          return TRUE;
+        }
+      }
+    }
+    drupal_set_message(t('Data not saved. An error occurred.'), 'error');
+    return FALSE;
+  }
+
+  /**
    * Implements upgradeCheckCryptUserData().
    */
-  public static function upgradeCheckCryptUserData($data = NULL, $param = 'encrypt') {
+  private static function upgradeCheckCryptUserData($data = NULL, $param = 'encrypt') {
     $key = base64_encode(self::KEY);
     $iv = self::IV;
     if (!empty($data) && $param === 'encrypt') {
@@ -849,7 +871,7 @@ class EvaluationImplementation {
   /**
    * Curl request.
    *
-   * @param string $data
+   * @param array $data
    */
   private static function upgradeCheckCurl($data) {
     $headers = array();
@@ -874,7 +896,7 @@ class EvaluationImplementation {
    * Crypting value metatag.
    */
   private static function generateCryptMetatag() {
-    $salt = variable_get(self::UPGRADE_CHECK_SALT_FIELD_NAME, 'kB3W"jydd');
+    $salt = variable_get(self::UPGRADE_CHECK_SALT_FIELD_NAME, self::KEY);
     $data = md5(drupal_random_key() . $salt);
     return $data;
   }
