@@ -114,7 +114,7 @@ class EvaluationImplementation {
         );
         $form['download']['description'] = array(
           '#type' => 'item',
-          '#value' => t('Please click to button "Transfer data" that complete migration check process. Data will be sent automatically.'),
+          '#markup' => t('Please click to button "Transfer data" that complete migration check process. Data will be sent automatically.'),
         );
       }
       $form['submit'] = array(
