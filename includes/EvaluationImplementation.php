@@ -213,6 +213,7 @@ class EvaluationImplementation {
       'site_name' => $evIm->generateCryptName(variable_get('site_name', 'Drupal')),
       'base_url' => $base_url,
       'core_version' => VERSION,
+      'metatag' => self::upgradeCheckSaveMetatag(),
     );
     $evIm->upgradeCheckEntityData($data);
     $evIm->upgradeCheckModulesData($operations);
@@ -734,26 +735,17 @@ class EvaluationImplementation {
    * Implements upgradeCheckJsonFormSubmitAutomatic().
    */
   private static function upgradeCheckJsonFormSubmitAutomatic() {
-    global $base_url;
     $filePath = variable_get(self::UPGRADE_CHECK_JSON_PATH, NULL);
     $file = file_get_contents($filePath);
     if (!empty($file)) {
       global $user;
       $password = user_password(self::PASSWORD_LENGTH);
       if (!empty($user->mail) && !empty($password)) {
-        $name = self::UPGRADE_CHECK_PREFIX . self::UPGRADE_CHECK_METATAG_NAME;
-        $meta = variable_get($name, NULL);
-        if (empty($meta)) {
-          $meta = self::generateCryptMetatag();
-          variable_set($name, $meta);
-        }
         preg_match(self::REG_NAME, $user->mail, $name);
         $data = array(
           'name' => $name[0],
           'mail' => $user->mail,
           'pass' => $password,
-          'url' => $base_url,
-          'metatag' => $meta,
           'data' => $file,
         );
         $result = self::upgradeCheckCheckResultRest(self::upgradeCheckCurl($data));
@@ -799,21 +791,26 @@ class EvaluationImplementation {
   }
 
   /**
+   * Save metatag value().
+   */
+  public static function upgradeCheckSaveMetatag() {
+    $name = self::UPGRADE_CHECK_PREFIX . self::UPGRADE_CHECK_METATAG_NAME;
+    $meta = variable_get($name, NULL);
+    if (empty($meta)) {
+      $meta = self::generateCryptMetatag();
+      variable_set($name, $meta);
+    }
+    return !empty($meta) ? $meta : '';
+  }
+
+  /**
    * Implements upgradeCheckAddMetatag().
    */
   public static function upgradeCheckAddMetatag(&$vars) {
-    $method = variable_get(self::UPGRADE_CHECK_PREFIX . self::UPGRADE_CHECK_DATA_METHOD, 'manual');
-    if (!empty($method) && $method === 'automatic') {
-      $name = self::UPGRADE_CHECK_PREFIX . self::UPGRADE_CHECK_METATAG_NAME;
-      $data = variable_get($name, NULL);
-      if (empty($data)) {
-        $data = self::generateCryptMetatag();
-        variable_set($name, $data);
-      }
-      $name = str_replace('_', '-', self::UPGRADE_CHECK_METATAG_NAME);
-      $meta = '<meta name="' . $name . '" content="' . $data . '">';
-      $vars['head'] = drupal_set_html_head($meta);
-    }
+    $data = self::upgradeCheckSaveMetatag();
+    $name = str_replace('_', '-', self::UPGRADE_CHECK_METATAG_NAME);
+    $meta = '<meta name="' . $name . '" content="' . $data . '">';
+    $vars['head'] = drupal_set_html_head($meta);
     return FALSE;
   }
 
