@@ -36,6 +36,7 @@ class EvaluationCode {
     $themes['name'] = !empty($theme['name']) ? $theme['name'] : '';
     $themes['status'] = !empty($theme['status']) ? $theme['status'] : 0;
     $theme_path = drupal_get_path('theme', variable_get('theme_default', NULL));
+    $themes['isset_status'] = TRUE;
     $default_theme = substr($theme_path, strrpos($theme_path, '/') + 1);
     if ($themes['name'] === $default_theme) {
       $themes['type'] = 'Default';
@@ -46,25 +47,30 @@ class EvaluationCode {
       $themes['type_status'] = !empty($data['type']) ? $data['type'] : $this->custom;
       if (!empty($data) && !empty($data['type']) && in_array($data['type'], $param, TRUE)) {
         $filePath = substr($theme['filename'], 0, strripos($theme['filename'], '/'));
-        $recursiveDirectory = new \RecursivedirectoryIterator($filePath);
-        $recursiveIterator = new \RecursiveIteratorIterator($recursiveDirectory);
-        $ident = array('.info', '.txt', '/.', '/..', '.png', '.gif', '.jpeg');
-        foreach ($recursiveIterator as $name => $object) {
-          $status = FALSE;
-          foreach ($ident as $val) {
-            if (strpos($name, $val) !== FALSE) {
-              $status = TRUE;
+        if (file_exists($filePath)) {
+          $recursiveDirectory = new \RecursivedirectoryIterator($filePath);
+          $recursiveIterator = new \RecursiveIteratorIterator($recursiveDirectory);
+          $ident = array('.info', '.txt', '/.', '/..', '.png', '.gif', '.jpeg');
+          foreach ($recursiveIterator as $name => $object) {
+            $status = FALSE;
+            foreach ($ident as $val) {
+              if (strpos($name, $val) !== FALSE) {
+                $status = TRUE;
+              }
+            }
+            if (!empty($status)) {
+              continue;
+            }
+            else {
+              $checkCode = $this->checkCode($name, $themes['name']);
+              $themes['lines'] += $checkCode['all_strings'];
+              $checkCode['file_name'] = $name;
+              $themes['files'][] = $checkCode;
             }
           }
-          if (!empty($status)) {
-            continue;
-          }
-          else {
-            $checkCode = $this->checkCode($name, $themes['name']);
-            $themes['lines'] += $checkCode['all_strings'];
-            $checkCode['file_name'] = $name;
-            $themes['files'][] = $checkCode;
-          }
+        }
+        else {
+          $themes['isset_status'] = FALSE;
         }
       }
     }
@@ -81,6 +87,7 @@ class EvaluationCode {
     $modules = $modules['files'] = array();
     $modules['lines'] = 0;
     $modules['name'] = !empty($module['name']) ? $module['name'] : '';
+    $modules['isset_status'] = TRUE;
     $modules['schema_version'] = !empty($module['schema_version']) ? $module['schema_version'] : '';
     $modules['package'] = !empty($module['info']['package']) ? $module['info']['package'] : $this->other;
     $modules['parent_module'] = !empty($module['parent_module']) ? $module['parent_module'] : '';
@@ -96,25 +103,38 @@ class EvaluationCode {
       $modules['package'] = !empty($module['info']['package']) ? $module['info']['package'] : $this->other;
       if (!empty($data) && !empty($data['type']) && in_array($data['type'], $param, TRUE)) {
         $filePath = substr($module['filename'], 0, strripos($module['filename'], '/'));
-        $recursiveDirectory = new \RecursivedirectoryIterator($filePath);
-        $recursiveIterator = new \RecursiveIteratorIterator($recursiveDirectory);
-        foreach ($recursiveIterator as $name => $object) {
-          $status = FALSE;
-          $ident = array('.info', '.txt', '/.', '/..', '.png', '.gif', '.jpeg');
-          foreach ($ident as $val) {
-            if (strpos($name, $val) !== FALSE) {
-              $status = TRUE;
+        if (file_exists($filePath)) {
+          $recursiveDirectory = new \RecursivedirectoryIterator($filePath);
+          $recursiveIterator = new \RecursiveIteratorIterator($recursiveDirectory);
+          foreach ($recursiveIterator as $name => $object) {
+            $status = FALSE;
+            $ident = array(
+              '.info',
+              '.txt',
+              '/.',
+              '/..',
+              '.png',
+              '.gif',
+              '.jpeg'
+            );
+            foreach ($ident as $val) {
+              if (strpos($name, $val) !== FALSE) {
+                $status = TRUE;
+              }
+            }
+            if (!empty($status)) {
+              continue;
+            }
+            else {
+              $checkCode = $this->checkCode($name, $modules['name']);
+              $modules['lines'] += $checkCode['all_strings'];
+              $checkCode['file_name'] = $name;
+              $modules['files'][] = $checkCode;
             }
           }
-          if (!empty($status)) {
-            continue;
-          }
-          else {
-            $checkCode = $this->checkCode($name, $modules['name']);
-            $modules['lines'] += $checkCode['all_strings'];
-            $checkCode['file_name'] = $name;
-            $modules['files'][] = $checkCode;
-          }
+        }
+        else {
+          $modules['isset_status'] = FALSE;
         }
       }
     }
