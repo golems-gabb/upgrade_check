@@ -36,6 +36,10 @@ class EvaluationImplementation {
 
   const UPGRADE_CHECK_DATA_METHOD = 'data_transfer_method';
 
+  const UPGRADE_CHECK_URL_ESTIMATE = 'estimate';
+
+  const UPGRADE_CHECK_URL_AUTHOMATIC = 'automatic-estimate';
+
   /**
    * Implements upgrade_check_form().
    */
@@ -87,7 +91,7 @@ class EvaluationImplementation {
           'html' => TRUE,
           'attributes' => array('target' => '_blank'),
         );
-        $link = l('Upload Json', UPGRADE_CHECK_URL, $options);
+        $link = l('Upload Json', UPGRADE_CHECK_URL . self::UPGRADE_CHECK_URL_ESTIMATE, $options);
         $form['download']['description'] = array(
           '#type' => 'item',
           '#markup' => t('Please follow the steps to complete migration check process:'),
@@ -175,9 +179,9 @@ class EvaluationImplementation {
       );
       $form[self::UPGRADE_CHECK_RESULT_FORM]['description'] = array(
         '#type' => 'item',
-        '#value' => t('Use this data to authorize here - !link',
+        '#markup' => t('Use this data to authorize here - !link',
           array(
-            '!link' => l(UPGRADE_CHECK_URL, UPGRADE_CHECK_URL),
+            '!link' => l(UPGRADE_CHECK_URL, UPGRADE_CHECK_URL . self::UPGRADE_CHECK_URL_ESTIMATE),
           )
         ),
       );
@@ -831,7 +835,7 @@ class EvaluationImplementation {
   private static function upgradeCheckCurl($data) {
     $headers = array();
     $curl = curl_init();
-    curl_setopt($curl, CURLOPT_URL, UPGRADE_CHECK_URL);
+    curl_setopt($curl, CURLOPT_URL, UPGRADE_CHECK_URL . self::UPGRADE_CHECK_URL_AUTHOMATIC);
     curl_setopt($curl, CURLOPT_VERBOSE, TRUE);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, TRUE);
     curl_setopt($curl, CURLOPT_TIMEOUT, 20);
