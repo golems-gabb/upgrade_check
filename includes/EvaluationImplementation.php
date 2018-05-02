@@ -12,6 +12,8 @@ class EvaluationImplementation {
 
   private $regType = '/\.(\w+)$/';
 
+  private $crypt = '';
+
   const REG_NAME = '/^\w+/';
 
   const PASSWORD_LENGTH = 15;
@@ -214,6 +216,7 @@ class EvaluationImplementation {
     }
     $evIm = new EvaluationImplementation;
     $data['site_info'] = array(
+      'crypt' => $evIm->checkCrypt(),
       'site_name' => $evIm->generateCryptName(variable_get('site_name', 'Drupal')),
       'base_url' => $base_url,
       'core_version' => VERSION,
@@ -906,12 +909,23 @@ class EvaluationImplementation {
    * Crypting values.
    */
   private function generateCryptName($name) {
-    $crypt = variable_get(UPGRADE_CHECK_REPLACE_ENTITY_NAME, 'no');
+    $crypt = !empty($this->crypt) ? $this->crypt : $this->checkCrypt();
     if (!empty($crypt) && $crypt === 'yes') {
       $salt = variable_get(self::UPGRADE_CHECK_SALT_FIELD_NAME, '');
       $name = md5($name . $salt);
     }
     return $name;
+  }
+
+  /**
+   * Crypting check.
+   */
+  private function checkCrypt() {
+    $this->crypt = variable_get(UPGRADE_CHECK_REPLACE_ENTITY_NAME, 'no');
+    if (empty($this->crypt)) {
+      $this->crypt = 'no';
+    }
+    return $this->crypt;
   }
 
   /**

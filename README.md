@@ -75,7 +75,7 @@
 
 ### Contact info
 
-[golems.support@gmail.com](golems.support@gmail.com)
+[golems.sup@gmail.com](golems.sup@gmail.com)
 
 ### Maintainers
 
