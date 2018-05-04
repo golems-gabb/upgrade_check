@@ -147,7 +147,7 @@ class EvaluationImplementation {
     );
     $form[UPGRADE_CHECK_SETTINGS_FORM][UPGRADE_CHECK_REPLACE_ENTITY_NAME] = array(
       '#type' => 'radios',
-      '#title' => t('Replace enity names'),
+      '#title' => t('Replace enity names. We care about protecting your personal information, so you can encode data: content type names, vocabulary term manes, field names, etc.'),
       '#options' => array('no' => t('No'), 'yes' => t('Yes')),
       '#default_value' => variable_get(UPGRADE_CHECK_REPLACE_ENTITY_NAME, 'no'),
     );
