@@ -323,20 +323,48 @@ class EvaluationCode {
         $modules[$key]->type_module = 'module';
         if (!empty($module) && !empty($module->info['dependencies'])) {
           foreach ($module->info['dependencies'] as $dependencies) {
-            if (!empty($dependencies) && !empty($modules[$dependencies])) {
-              $regSubmodules = '/\/modules\/' . $dependencies . '\/\w+/';
-              if (!empty($module->filename) && preg_match($regSubmodules, $module->filename)) {
-                $modules[$key]->parent_module = $dependencies;
-              }
-              elseif (!empty($module->info['features'])) {
-                $modules[$key]->type_module = 'feature';
+            if (!empty($dependencies) && !empty($modules[$dependencies]) && !empty($module->filename)) {
+              if (empty($module->parent_module)) {
+                if (strpos($module->filename, '/' . $dependencies . '/') !== FALSE) {
+                  $modules[$key]->parent_module = $dependencies;
+                }
+                elseif(self::upgradeCheckSubmodulesSubmodules($modules, $key, $module)) {
+                  break;
+                }
+                elseif (!empty($module->info['features'])) {
+                  $modules[$key]->type_module = 'feature';
+                }
               }
             }
           }
         }
+        elseif ($module && empty($module->parent_module)) {
+          self::upgradeCheckSubmodulesSubmodules($modules, $key, $module);
+        }
       }
     }
     return $modules;
+  }
+
+  /**
+   * Check for submodules which depend on another submodule.
+   */
+  public static function upgradeCheckSubmodulesSubmodules(&$modules, $key, $module) {
+    $regSubmodules = '/(\w+)\/(modules\/)*\w+\/' . $module->name . '\.module/';
+    $regBadSubmodules = '/(\w+)\/(modules\/)*' . $module->name . '\.module/';
+    if (preg_match($regSubmodules, $module->filename,$resuls)) {
+      if (!empty($resuls[1]) && !empty($modules[$resuls[1]])) {
+        $modules[$key]->parent_module = $resuls[1];
+        return TRUE;
+      }
+    }
+    elseif (preg_match($regBadSubmodules, $module->filename,$resuls)) {
+      if (!empty($resuls[1]) && !empty($modules[$resuls[1]])) {
+        $modules[$key]->parent_module = $resuls[1];
+        return TRUE;
+      }
+    }
+    return FALSE;
   }
 
   /**
@@ -349,10 +377,11 @@ class EvaluationCode {
       foreach ($modules as $key => $module) {
         if (!empty($module) && !empty($module['parent_module'])) {
           $pKey = $module['parent_module'];
-          if (!empty($modules[$pKey]) && !empty($modules[$pKey]['type_status'])
-            && in_array($modules[$pKey]['type_status'], $param, TRUE)) {
+          if (!empty($modules[$pKey]) && !empty($modules[$pKey]['type_status'])) {
             $modules[$key]['type_status'] = $modules[$pKey]['type_status'];
-            unset($modules[$key]['files']);
+            if (in_array($modules[$pKey]['type_status'], $param, TRUE)) {
+              unset($modules[$key]['files']);
+            }
           }
         }
       }
