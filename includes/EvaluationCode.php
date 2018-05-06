@@ -367,7 +367,7 @@ class EvaluationCode {
       }
     }
     elseif (preg_match($regBadSubmodules, $module->filename,$resuls)) {
-      if (!empty($resuls[1]) && !empty($modules[$resuls[1]])) {
+      if (!empty($resuls[1]) && !empty($modules[$resuls[1]]) && $resuls[1] !== $module->name) {
         $modules[$key]->parent_module = $resuls[1];
         return TRUE;
       }
