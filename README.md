@@ -37,8 +37,18 @@
   * Our company is always in touch and will help to solve any problem
   with the module, and we always answer your questions.
 
+## Preparation
+  To estimate migration as accurately as possible, follow these tips:
+  1. Please disable modules and themes that are not used on the site.
+     Because they increase the time for migration.
+  2. Delete all entities: users, nodes, comments, files, taxonomy terms,
+     that you do not use.
+     Because they increase the time for migration.
+  3. If you have enabled the "Background Process" module, disable it.
+     Because there is a compatibility issue for this modules.
+
 ## Usage
- You need to take few steps to generate the report:
+  You need to take few steps to generate the report:
   1. Download the module. Use the optimal way to install that fits your project
   module delivery method via manual installing, drush or composer:
 
@@ -58,7 +68,11 @@
   4. Once the module has loaded click "Analyze".
   5. Now, this module will start analyzing your website.
   6. Once the module has completed the analysis, press "Download JSON".
-  7. After downloading JSON File, for manual way, upload it on
+  7. **Do not disable the "Drupal 8 upgrade evaluation" module until you
+     download json file to resource https://golems.top/estimate and do not get
+     estimate result. Because the "Drupal 8 upgrade evaluation" module is
+     needed to confirm verifying the ownership of your website.**
+  8. After downloading JSON File, for manual way, upload it on
     https://golems.top/estimate with your credentials
     (you have to log in or register) to estimate your website. There is an
     available version to estimate your web resource without authorization.
@@ -68,10 +82,10 @@
     available on "/admin/config/upgrade-check/result" page of your site.
     Estimation results will be available on resourse https://golems.top on the
     profile page.**
-  8. Your estimated resources will be available on your profile page on the
+  9. Your estimated resources will be available on your profile page on the
     service site. Also, a link will be sent to your e-mail, where the assessment
     of your web resource will be available.
-  9. Enjoy the result.
+  10. Enjoy the result.
 
 ### Contact info
 
