@@ -222,6 +222,7 @@ class EvaluationCode {
     if (!empty($project['info']['project status url'])) {
       return $project['info']['project status url'];
     }
+    module_load_include('module', 'update');
     return variable_get('update_fetch_url', UPDATE_DEFAULT_URL);
   }
 

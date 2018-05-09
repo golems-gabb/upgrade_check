@@ -57,6 +57,12 @@ class EvaluationImplementation {
       '#type' => 'item',
       '#value' => t('!text', array('!text' => $text)),
     );
+    $conflict = self::upgradeCheckConflictModules();
+    if (!empty($conflict)) {
+      $textConflict = 'We have detected that you have conflict modules ';
+      $textConflict .= 'enabled. Please disable @names.';
+      drupal_set_message(t($textConflict, array('@names' => $conflict)), 'error');
+    }
     $method = variable_get(self::UPGRADE_CHECK_PREFIX . self::UPGRADE_CHECK_DATA_METHOD, 'manual');
     $form['analyze'][self::UPGRADE_CHECK_DATA_METHOD] = array(
       '#type' => 'radios',
@@ -83,6 +89,13 @@ class EvaluationImplementation {
     $form = array();
     if (file_exists(variable_get(self::UPGRADE_CHECK_JSON_PATH, NULL))) {
       $method = variable_get(self::UPGRADE_CHECK_PREFIX . self::UPGRADE_CHECK_DATA_METHOD, 'manual');
+      $url = UPGRADE_CHECK_URL . self::UPGRADE_CHECK_URL_ESTIMATE;
+      $link = l($url, $url);
+      $text = 'Do not disable the "Drupal 8 upgrade evaluation" module until ';
+      $text .= 'you download json file to resource !l and do not get estimate ';
+      $text .= 'result. Because the "Drupal 8 upgrade evaluation" module is ';
+      $text .= 'needed to confirm verifying the ownership of your website.';
+      drupal_set_message(t($text, array('!l' => $link)), 'warning');
       if (!empty($method) && $method !== 'automatic') {
         $form['download'] = array(
           '#type' => 'fieldset',
@@ -93,18 +106,18 @@ class EvaluationImplementation {
           'html' => TRUE,
           'attributes' => array('target' => '_blank'),
         );
-        $link = l('Upload Json', UPGRADE_CHECK_URL . self::UPGRADE_CHECK_URL_ESTIMATE, $options, $options);
+        $link = l('Upload Json', $url, $options);
         $form['download']['description'] = array(
           '#type' => 'item',
           '#value' => t('Please follow the steps to complete migration check process:'),
         );
         $form['download']['description_list_one'] = array(
           '#type' => 'item',
-          '#value' => t('I - Download Json File from the given below link.'),
+          '#value' => t('I - Download JSON file from the given below link.'),
         );
         $form['download']['description_list_two'] = array(
           '#type' => 'item',
-          '#value' => t('II - Upload the json file here --> !link',
+          '#value' => t('II - Upload the JSON file here: !link',
             array(
               '!link' => $link,
             )
@@ -1118,6 +1131,34 @@ class EvaluationImplementation {
       }
     }
     return $datas;
+  }
+
+  /**
+ * Conflict modules.
+ */
+  private static function upgradeCheckConflictModules($module = NULL) {
+    $result = '';
+    $prefix = 'module';
+    $modules = array(
+      'background_process' => 'background_process',
+    );
+    if (!empty($module) && !empty($modules[$module])) {
+      if (module_exists($modules[$module])) {
+        return $prefix . ' "' . $modules[$module] . '"';
+      }
+    }
+    else {
+      if ((int) count($modules) > 1) {
+        $prefix .= 's';
+      }
+      foreach ($modules as $module) {
+        if (module_exists($modules[$module])) {
+          $prefix = empty($result) ? $prefix . ': ' : ', ';
+          $result .= $prefix . '"' . $modules[$module] . '"';
+        }
+      }
+    }
+    return $result;
   }
 
 }
