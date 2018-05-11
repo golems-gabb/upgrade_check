@@ -61,6 +61,17 @@ function upgrade_check_menu() {
 }
 
 /**
+ * Implements hook_permission().
+ */
+function upgrade_check_permission() {
+  return array(
+    UPGRADE_CHECK_ACCESS => array(
+      'title' => t('Administer upgrade check'),
+      'description' => t('Access data import page.')),
+  );
+}
+
+/**
  * Implements hook_form().
  */
 function _upgrade_check_form() {

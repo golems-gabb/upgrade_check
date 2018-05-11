@@ -44,6 +44,10 @@ class EvaluationImplementation {
 
   const UPGRADE_CHECK_FOLDER = 'public://';
 
+  const FILE_NAME = 'Drupal';
+
+  const FILE_NAME_REGEX = array('.', ',', '/', ' ', '-', "'", '"');
+
   /**
    * Implements upgrade_check_form().
    */
@@ -238,7 +242,7 @@ class EvaluationImplementation {
     $evIm = new EvaluationImplementation;
     $data['site_info'] = array(
       'crypt' => $evIm->checkCrypt(),
-      'site_name' => $evIm->generateCryptName(variable_get('site_name', 'Drupal')),
+      'site_name' => $evIm->generateCryptName(variable_get('site_name', self::FILE_NAME)),
       'base_url' => $base_url,
       'core_version' => VERSION,
       'metatag' => self::upgradeCheckSaveMetatag(),
@@ -740,7 +744,11 @@ class EvaluationImplementation {
    * Implements upgradeCheckJsonFormSubmitManualy().
    */
   private static function upgradeCheckJsonFormSubmitManualy() {
-    $siteName = variable_get('site_name', 'Drupal');
+    $siteName = variable_get('site_name', self::FILE_NAME);
+    $siteName = str_replace(self::FILE_NAME_REGEX, '_', $siteName);
+    if (empty(preg_match('/^\w+$/', $siteName))) {
+      $siteName = self::FILE_NAME;
+    }
     $filePath = variable_get(self::UPGRADE_CHECK_JSON_PATH);
     $file = fopen($filePath, 'r') or die('Please give suitable Permission to files folder');
     $fileSize = filesize($filePath);
@@ -750,7 +758,7 @@ class EvaluationImplementation {
     header('Content-Description: File Transfer');
     header('Content-Disposition: attachment;filename=' . $siteName . '.' . 'json');
     header('Content-length: ' . $fileSize);
-    header('Cache-control: private'); //use this to open files directly
+    header('Cache-control: private');
     while (!feof($file)) {
       $buffer = fread($file, 2048);
       echo $buffer;
