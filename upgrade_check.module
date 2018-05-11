@@ -61,6 +61,13 @@ function upgrade_check_menu() {
 }
 
 /**
+ * Implements hook_perm().
+ */
+function upgrade_check_perm() {
+  return array(UPGRADE_CHECK_ACCESS);
+}
+
+/**
  * Implements hook_form().
  */
 function _upgrade_check_form() {
