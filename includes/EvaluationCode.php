@@ -26,6 +26,38 @@ class EvaluationCode {
 
   private $regClass = '/class\s*(\w+)\s*(\w+\s\w+)*\s\{/';
 
+  private $excludedFiles = array(
+    '.info',
+    '.txt',
+    '/.',
+    '/..',
+    '.png',
+    '.gif',
+    '.jpeg',
+    '.jpg',
+    '.html',
+    '.woff',
+    '.woff2',
+    '.eot',
+    '.icns',
+    '.ico',
+    '.otf',
+    '.zip',
+    '.gz',
+    '.tar',
+    '.pdf',
+    '.swf',
+    '.ttf',
+    '.svg',
+    '.json',
+    '.rb',
+    '.yml',
+    '.coffee',
+    '.doc',
+    '.docx',
+    '.rar',
+  );
+
   /**
    * Implements _upgrade_check_themes_evaluation().
    */
@@ -52,10 +84,9 @@ class EvaluationCode {
         if (file_exists($filePath)) {
           $recursiveDirectory = new \RecursivedirectoryIterator($filePath);
           $recursiveIterator = new \RecursiveIteratorIterator($recursiveDirectory);
-          $ident = array('.info', '.txt', '/.', '/..', '.png', '.gif', '.jpeg');
           foreach ($recursiveIterator as $name => $object) {
             $status = FALSE;
-            foreach ($ident as $val) {
+            foreach ($this->excludedFiles as $val) {
               if (strpos($name, $val) !== FALSE) {
                 $status = TRUE;
               }
@@ -109,8 +140,7 @@ class EvaluationCode {
           $recursiveIterator = new \RecursiveIteratorIterator($recursiveDirectory);
           foreach ($recursiveIterator as $name => $object) {
             $status = FALSE;
-            $ident = array('.info', '.txt', '/.', '/..', '.png', '.gif', '.jpeg');
-            foreach ($ident as $val) {
+            foreach ($this->excludedFiles as $val) {
               if (strpos($name, $val) !== FALSE) {
                 $status = TRUE;
               }
