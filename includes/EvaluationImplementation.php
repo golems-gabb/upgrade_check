@@ -14,6 +14,8 @@ class EvaluationImplementation {
 
   private $crypt = '';
 
+  static $fileNameRegex = array('.', ',', '/', ' ', '-', "'", '"');
+
   const REG_NAME = '/^\w+/';
 
   const PASSWORD_LENGTH = 15;
@@ -43,8 +45,6 @@ class EvaluationImplementation {
   const UPGRADE_CHECK_URL_AUTHOMATIC = 'automatic-estimate';
 
   const FILE_NAME = 'Drupal';
-
-  const FILE_NAME_REGEX = array('.', ',', '/', ' ', '-', "'", '"');
 
   /**
    * Implements upgrade_check_form().
@@ -793,8 +793,9 @@ class EvaluationImplementation {
    */
   private static function upgradeCheckJsonFormSubmitManualy() {
     $siteName = variable_get('site_name', self::FILE_NAME);
-    $siteName = str_replace(self::FILE_NAME_REGEX, '_', $siteName);
-    if (empty(preg_match('/^\w+$/', $siteName))) {
+    $siteName = str_replace(self::$fileNameRegex, '_', $siteName);
+    $result = preg_match('/^\w+$/', $siteName);
+    if (empty($result)) {
       $siteName = self::FILE_NAME;
     }
     $filePath = variable_get(self::UPGRADE_CHECK_JSON_PATH, NULL);
@@ -1142,8 +1143,8 @@ class EvaluationImplementation {
   }
 
   /**
- * Conflict modules.
- */
+   * Conflict modules.
+   */
   private static function upgradeCheckConflictModules($module = NULL) {
     $result = '';
     $prefix = 'module';

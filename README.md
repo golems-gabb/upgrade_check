@@ -65,14 +65,17 @@
   2. Enable module via admin UI or Drush.
   3. After installation go to configuration tab and find
      "Drupal 8 upgrade evaluation" (admin/config/upgrade-check/evaluation)
-  4. Once the module has loaded click "Analyze".
-  5. Now, this module will start analyzing your website.
-  6. Once the module has completed the analysis, press "Download JSON".
-  7. **Do not disable the "Drupal 8 upgrade evaluation" module until you
+  4. If you need to be able to work with the module for other user roles
+     on the site, go to page "admin/user/permissions"
+     and add the "administer upgrade check" permissions to the required role.
+  5. Once the module has loaded click "Analyze".
+  6. Now, this module will start analyzing your website.
+  7. Once the module has completed the analysis, press "Download JSON".
+  8. **Do not disable the "Drupal 8 upgrade evaluation" module until you
      download json file to resource https://golems.top/estimate and do not get
      estimate result. Because the "Drupal 8 upgrade evaluation" module is
      needed to confirm verifying the ownership of your website.**
-  8. After downloading JSON File, for manual way, upload it on
+  9. After downloading JSON File, for manual way, upload it on
     https://golems.top/estimate with your credentials
     (you have to log in or register) to estimate your website. There is an
     available version to estimate your web resource without authorization.
@@ -82,10 +85,10 @@
     available on "/admin/config/upgrade-check/result" page of your site.
     Estimation results will be available on resourse https://golems.top on the
     profile page.**
-  9. Your estimated resources will be available on your profile page on the
+  10. Your estimated resources will be available on your profile page on the
     service site. Also, a link will be sent to your e-mail, where the assessment
     of your web resource will be available.
-  10. Enjoy the result.
+  11. Enjoy the result.
 
 ### Contact info
 
