@@ -16,6 +16,8 @@ class EvaluationImplementation {
 
   const REG_NAME = '/^\w+/';
 
+  static $fileNameRegex = array('.', ',', '/', ' ', '-', "'", '"');
+
   const PASSWORD_LENGTH = 15;
 
   const METHOD = 'aes128';
@@ -45,8 +47,6 @@ class EvaluationImplementation {
   const UPGRADE_CHECK_FOLDER = 'public://';
 
   const FILE_NAME = 'Drupal';
-
-  const FILE_NAME_REGEX = array('.', ',', '/', ' ', '-', "'", '"');
 
   /**
    * Implements upgrade_check_form().
@@ -745,7 +745,7 @@ class EvaluationImplementation {
    */
   private static function upgradeCheckJsonFormSubmitManualy() {
     $siteName = variable_get('site_name', self::FILE_NAME);
-    $siteName = str_replace(self::FILE_NAME_REGEX, '_', $siteName);
+    $siteName = str_replace(self::$fileNameRegex, '_', $siteName);
     if (empty(preg_match('/^\w+$/', $siteName))) {
       $siteName = self::FILE_NAME;
     }
