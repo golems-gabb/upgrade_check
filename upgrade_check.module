@@ -67,7 +67,8 @@ function upgrade_check_permission() {
   return array(
     UPGRADE_CHECK_ACCESS => array(
       'title' => t('Administer upgrade check'),
-      'description' => t('Access data import page.')),
+      'description' => t('Access data import page.'),
+    ),
   );
 }
 

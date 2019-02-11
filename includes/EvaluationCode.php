@@ -363,7 +363,7 @@ class EvaluationCode {
                 if (strpos($module->filename, '/' . $dependencies . '/') !== FALSE) {
                   $modules[$key]->parent_module = $dependencies;
                 }
-                elseif(self::upgradeCheckSubmodulesSubmodules($modules, $key, $module)) {
+                elseif (self::upgradeCheckSubmodulesSubmodules($modules, $key, $module)) {
                   break;
                 }
                 elseif (!empty($module->info['features'])) {
@@ -387,13 +387,13 @@ class EvaluationCode {
   public static function upgradeCheckSubmodulesSubmodules(&$modules, $key, $module) {
     $regSubmodules = '/(\w+)\/(modules\/)*\w+\/' . $module->name . '\.module/';
     $regBadSubmodules = '/(\w+)\/(modules\/)*' . $module->name . '\.module/';
-    if (preg_match($regSubmodules, $module->filename,$resuls)) {
+    if (preg_match($regSubmodules, $module->filename, $resuls)) {
       if (!empty($resuls[1]) && !empty($modules[$resuls[1]])) {
         $modules[$key]->parent_module = $resuls[1];
         return TRUE;
       }
     }
-    elseif (preg_match($regBadSubmodules, $module->filename,$resuls)) {
+    elseif (preg_match($regBadSubmodules, $module->filename, $resuls)) {
       if (!empty($resuls[1]) && !empty($modules[$resuls[1]]) && $resuls[1] !== $module->name) {
         $modules[$key]->parent_module = $resuls[1];
         return TRUE;
