@@ -355,8 +355,11 @@ class EvaluationCode {
         if (!empty($module) && !empty($module->info['dependencies'])) {
           foreach ($module->info['dependencies'] as $dependencies) {
             $delimiter = explode(':', $dependencies);
-            if (!empty($delimiter) && !empty(end($delimiter))) {
-              $dependencies = end($delimiter);
+            if (!empty($delimiter)) {
+              $last = end($delimiter);
+              if(!empty($last)) {
+                $dependencies = $last;
+              }
             }
             if (!empty($dependencies) && !empty($modules[$dependencies]) && !empty($module->filename)) {
               if (empty($module->parent_module)) {
