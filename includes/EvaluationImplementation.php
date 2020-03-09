@@ -923,7 +923,7 @@ class EvaluationImplementation {
    */
   private static function generateCryptMetatag() {
     $salt = variable_get(self::UPGRADE_CHECK_SALT_FIELD_NAME, self::KEY);
-    $data = md5(drupal_random_key() . $salt);
+    $data = md5(drupal_get_private_key() . $salt);
     return $data;
   }
 
